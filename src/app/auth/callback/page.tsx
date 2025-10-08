@@ -21,10 +21,10 @@ function CallbackContent() {
 
     useEffect(() => {
         const processAuth = async () => {
+            const code = searchParams.get('code')
+            const state = searchParams.get('state')
+            
             try {
-                const code = searchParams.get('code')
-                const state = searchParams.get('state')
-                
                 console.log('=== AUTH CALLBACK START ===')
                 console.log('Processing auth with code:', code ? 'PRESENT' : 'MISSING')
                 console.log('State:', state)
