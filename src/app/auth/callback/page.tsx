@@ -21,16 +21,19 @@ function CallbackContent() {
 
     useEffect(() => {
         const processAuth = async () => {
-            const code = searchParams.get('code')
-            const state = searchParams.get('state')
-            
             try {
-                console.log('Processing auth with code:', code)
+                const code = searchParams.get('code')
+                const state = searchParams.get('state')
+                
+                console.log('=== AUTH CALLBACK START ===')
+                console.log('Processing auth with code:', code ? 'PRESENT' : 'MISSING')
+                console.log('State:', state)
                 
                 if (!code || !state) {
                     throw new Error('No authorization code or state found in URL')
                 }
 
+                console.log('Making token request to /api/auth/token')
                 const response = await fetch('/api/auth/token', {
                     method: 'POST',
                     headers: {
@@ -39,6 +42,8 @@ function CallbackContent() {
                     },
                     body: JSON.stringify({ code }),
                 })
+                
+                console.log('Token response status:', response.status)
 
                 if (!response.ok) {
                     const errorData = await response.json()
@@ -106,8 +111,15 @@ function CallbackContent() {
                 console.log('Final redirect URL:', redirectUrl)
                 window.location.href = redirectUrl
             } catch (error) {
+                console.error('=== AUTH CALLBACK ERROR ===')
                 console.error('Auth callback error:', error)
+                console.error('Error details:', {
+                    message: error instanceof Error ? error.message : 'Unknown error',
+                    stack: error instanceof Error ? error.stack : undefined
+                })
+                
                 toast.error(error instanceof Error ? error.message : 'Authentication failed')
+                
                 // Try to get the app from state, fallback to devconsole
                 let app = 'devconsole' // Default fallback
                 if (state) {
@@ -119,11 +131,18 @@ function CallbackContent() {
                         app = 'devconsole'
                     }
                 }
+                
+                console.log('Redirecting to auth with app:', app)
                 router.push(`/auth?app=${app}`)
             }
         }
 
-        processAuth()
+        processAuth().catch((error) => {
+            console.error('=== UNCAUGHT ERROR IN PROCESSAUTH ===')
+            console.error('Uncaught error:', error)
+            toast.error('An unexpected error occurred during authentication')
+            router.push('/auth?app=devconsole')
+        })
     }, [router, searchParams])
 
     return (

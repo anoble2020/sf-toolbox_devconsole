@@ -10,6 +10,8 @@ export default function DevConsolePage() {
 
     useEffect(() => {
         console.log('DevConsole page mounted')
+        console.log('Environment:', process.env.NODE_ENV)
+        console.log('BYPASS_AUTH:', process.env.NEXT_PUBLIC_BYPASS_AUTH)
         
         const currentDomain = storage.getCurrentDomain()
         console.log('Current domain:', currentDomain)
@@ -20,19 +22,23 @@ export default function DevConsolePage() {
             const userInfo = storage.getFromDomain(currentDomain, 'user_info')
             console.log('Auth check:', { 
                 hasRefreshToken: !!refreshToken, 
-                hasUserInfo: !!userInfo 
+                hasUserInfo: !!userInfo,
+                refreshTokenLength: refreshToken ? refreshToken.length : 0
             })
             
-            hasValidAuth = true
+            hasValidAuth = !!refreshToken && !!userInfo
         }
 
         console.log('hasValidAuth', hasValidAuth)
 
         const bypassAuth = process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true';
+        console.log('bypassAuth', bypassAuth)
     
         if (hasValidAuth || bypassAuth) {
+            console.log('Redirecting to dashboard')
             router.push('/devconsole/dashboard');
         } else {
+            console.log('Redirecting to auth')
             router.push('/auth?app=devconsole');
         }
     }, [router])
