@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { LogsTable } from "@/components/LogsTable"
 import { LogViewer } from "@/components/LogViewer"
 import { queryLogs, getLogBody } from "@/lib/salesforce"
@@ -8,6 +8,7 @@ import { Loader2, MousePointerClick } from "lucide-react"
 import { storage } from "@/lib/storage"
 import { toast } from "sonner"
 import { TabState } from "@/lib/types"
+import { Button } from "@/components/ui/button"
 
 interface Log {
   id: string
