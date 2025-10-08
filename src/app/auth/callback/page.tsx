@@ -83,13 +83,18 @@ function CallbackContent() {
                 // Store user info
                 storage.setForDomain(domain, 'user_info', data.user)
 
-                console.log('Auth setup complete, redirecting...')
+                // Get the app parameter from the state or default to devconsole
+                const app = state ? JSON.parse(decodeURIComponent(state)).app || 'devconsole' : 'devconsole'
+                
+                console.log('Auth setup complete, redirecting to app:', app)
                 toast.success('Successfully connected organization')
-                window.location.href = '/dashboard'
+                window.location.href = `/${app}/dashboard`
             } catch (error) {
                 console.error('Auth callback error:', error)
                 toast.error(error instanceof Error ? error.message : 'Authentication failed')
-                router.push('/auth')
+                // Try to get the app from state, fallback to devconsole
+                const app = state ? JSON.parse(decodeURIComponent(state)).app || 'devconsole' : 'devconsole'
+                router.push(`/auth?app=${app}`)
             }
         }
 

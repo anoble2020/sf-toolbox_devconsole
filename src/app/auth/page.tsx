@@ -12,6 +12,7 @@ function AuthContent() {
     const searchParams = useSearchParams()
     const isConnecting = searchParams.get('connect') === 'true'
     const environment = searchParams.get('environment')
+    const app = searchParams.get('app') || 'devconsole' // Default to devconsole for backward compatibility
     const [customDomain, setCustomDomain] = useState('')
     const [showCustomDomain, setShowCustomDomain] = useState(false)
 
@@ -30,7 +31,8 @@ function AuthContent() {
             const params = new URLSearchParams({
                 environment: envType,
                 ...(isConnecting && { connect: 'true' }),
-                domain: loginDomain
+                domain: loginDomain,
+                app: app
             })
             
             const response = await fetch(`/api/auth/authorize?${params}`)
@@ -49,20 +51,39 @@ function AuthContent() {
 
     return (
         <div className="container relative min-h-screen flex items-center justify-center lg:max-w-none lg:px-0 bg-gradient-to-b from-white to-slate-200 dark:from-slate-900 dark:to-black">
-            <div className="w-full max-w-xl p-8 rounded-2xl bg-gradient-to-b from-white to-slate-150 text-slate-900 dark:from-slate-700/95 dark:to-slate-900/95 backdrop-blur-sm shadow-xl">
-                <div className="flex flex-col items-center text-slate-900 dark:text-white">
-                    <Image src="/icon_128_purp.png" alt="SF Toolkit Logo" width={128} height={128} priority />
-                    <h1 className="text-2xl font-semibold mb-2">
-                        {isConnecting ? 'Connect New Organization' : 'sf toolbox'}
-                    </h1>
-                    <div className="flex flex-col items-center mb-12 font-mono text-sm whitespace-nowrap">
-                        the open-source Salesforce developer console replacement
+            <div className="w-full max-w-2xl p-8 rounded-2xl bg-gradient-to-b from-white to-slate-150 text-slate-900 dark:from-slate-700/95 dark:to-slate-900/95 backdrop-blur-sm shadow-xl">
+                <div className="flex flex-col text-slate-900 dark:text-white">
+                    {/* Header with logo and title */}
+                    <a href="/">
+
+                    <div className="flex items-center mb-8">
+                        <Image src="/icon_128_purp.png" alt="SF Toolkit Logo" width={64} height={64} priority className="mr-2" />
+                        <div>
+                            <h1 className="text-2xl font-semibold mb-1">
+                                {isConnecting ? 'Connect New Organization' : 'sf toolbox'}
+                            </h1>
+                        </div>
+                        
                     </div>
-                    <div className="flex flex-col items-center mb-6 text-sm">
+                    </a>
+                    
+                    {/* Centered title and subtitle */}
+                    <div className="flex flex-col items-center mb-8">
+                        <div className="text-6xl font-semibold text-slate-600 dark:text-slate-300 mb-2">
+                        &#123; dev console &#125;
+                        </div>
+                        <div className="font-mono text-sm whitespace-nowrap mb-6">
+                            the open-source Salesforce developer console replacement
+                        </div>
+                    </div>
+
+                    {/* Instructions */}
+                    <div className="flex flex-col items-center mb-8 text-sm font-medium">
                         Connect your Salesforce org below to get started:
                     </div>
 
-                    <div className="flex gap-4">
+                    {/* Buttons row */}
+                    <div className="flex gap-4 justify-center">
                         <Button 
                             size="lg" 
                             onClick={() => handleLogin('sandbox')} 
@@ -105,35 +126,28 @@ function AuthContent() {
                                 {environment === 'production' ? 'Connect Production' : 'Production'}
                             </div>
                         </Button>
+                        <Button 
+                            size="lg" 
+                            onClick={() => setShowCustomDomain(!showCustomDomain)} 
+                            className="font-medium text-slate-900 dark:text-white bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-700"
+                        >
+                            <div className="dark:text-white">
+                                {showCustomDomain ? 'Use Standard' : 'Custom Domain'}
+                            </div>
+                        </Button>
                     </div>
 
-                    {showCustomDomain ? (
-                        <div className="mt-4 w-full max-w-sm">
+                    {/* Custom domain input */}
+                    {showCustomDomain && (
+                        <div className="mt-6 w-full max-w-md mx-auto">
                             <Input
                                 type="text"
                                 placeholder="my-domain.my.salesforce.com"
                                 value={customDomain}
                                 onChange={(e) => setCustomDomain(e.target.value)}
-                                className="mb-2"
+                                className="mb-4"
                             />
-                            <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => setShowCustomDomain(false)}
-                                className="w-full"
-                            >
-                                Use Standard Login
-                            </Button>
                         </div>
-                    ) : (
-                        <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => setShowCustomDomain(true)}
-                            className="mt-4"
-                        >
-                            Use Custom Domain
-                        </Button>
                     )}
 
                 </div>

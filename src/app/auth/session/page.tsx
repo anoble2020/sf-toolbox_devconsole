@@ -29,7 +29,7 @@ function SessionContent() {
         localStorage.setItem('sf_org_domain', domain)
 
         // Redirect to dashboard
-        router.push('/dashboard')
+        router.push('/devconsole/dashboard')
     }, [searchParams, router])
 
     return (

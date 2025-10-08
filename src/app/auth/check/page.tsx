@@ -29,12 +29,12 @@ function CheckAuthContent() {
         
         if (hasAuth) {
             // Explicitly construct dashboard URL with org parameter
-            const dashboardUrl = new URL('/dashboard', window.location.origin)
+            const dashboardUrl = new URL('/devconsole/dashboard', window.location.origin)
             dashboardUrl.searchParams.set('org', mySalesforceVersion)
             console.log('Check page - Redirecting to:', dashboardUrl.toString())
             window.location.replace(dashboardUrl.toString())
         } else {
-            const authUrl = new URL('/auth', window.location.origin)
+            const authUrl = new URL('/auth?app=devconsole', window.location.origin)
             authUrl.searchParams.set('connect', 'true')
             authUrl.searchParams.set('domain', domain)
             authUrl.searchParams.set('environment', domain.includes('sandbox') ? 'sandbox' : 'production')

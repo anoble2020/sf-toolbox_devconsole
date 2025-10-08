@@ -140,14 +140,14 @@ function ExecuteContent() {
                     toast.success('Code executed successfully', {
                         action: {
                             label: 'View Log',
-                            onClick: () => router.push('/logs'),
+                            onClick: () => router.push('/devconsole/logs'),
                         },
                     })
                 } else {
                     toast.error(result.logStatus || 'Execution failed', {
                         action: {
                             label: 'View Log',
-                            onClick: () => router.push('/logs'),
+                            onClick: () => router.push('/devconsole/logs'),
                         },
                     })
                 }

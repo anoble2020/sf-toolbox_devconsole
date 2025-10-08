@@ -43,7 +43,7 @@ export function OrgSwitcherModal({ isOpen, onClose, currentOrgId }: OrgSwitcherM
             storage.addConnectedOrg(updatedOrg)
             
             onClose()
-            window.location.href = '/dashboard'
+            window.location.href = '/devconsole/dashboard'
         } catch (error) {
             console.error('Error switching organization:', error)
             toast.error('Failed to switch organization')
@@ -66,7 +66,7 @@ export function OrgSwitcherModal({ isOpen, onClose, currentOrgId }: OrgSwitcherM
             })
 
             // Redirect to auth
-            window.location.href = `/auth?${params.toString()}`
+            window.location.href = `/auth?app=devconsole&${params.toString()}`
             onClose()
         } catch (error) {
             console.error('Error adding new org:', error)
