@@ -84,16 +84,41 @@ function CallbackContent() {
                 storage.setForDomain(domain, 'user_info', data.user)
 
                 // Get the app parameter from the state or default to devconsole
-                const app = state ? JSON.parse(decodeURIComponent(state)).app || 'devconsole' : 'devconsole'
+                let app = 'devconsole' // Default fallback
+                if (state) {
+                    try {
+                        const parsedState = JSON.parse(decodeURIComponent(state))
+                        app = parsedState.app || 'devconsole'
+                        console.log('Parsed state:', parsedState, 'App:', app)
+                    } catch (e) {
+                        console.error('Failed to parse state:', state, e)
+                        app = 'devconsole'
+                    }
+                } else {
+                    console.log('No state parameter found, using default app: devconsole')
+                }
                 
                 console.log('Auth setup complete, redirecting to app:', app)
                 toast.success('Successfully connected organization')
-                window.location.href = `/${app}/dashboard`
+                
+                // Always ensure we redirect to devconsole for now
+                const redirectUrl = '/devconsole/dashboard'
+                console.log('Final redirect URL:', redirectUrl)
+                window.location.href = redirectUrl
             } catch (error) {
                 console.error('Auth callback error:', error)
                 toast.error(error instanceof Error ? error.message : 'Authentication failed')
                 // Try to get the app from state, fallback to devconsole
-                const app = state ? JSON.parse(decodeURIComponent(state)).app || 'devconsole' : 'devconsole'
+                let app = 'devconsole' // Default fallback
+                if (state) {
+                    try {
+                        const parsedState = JSON.parse(decodeURIComponent(state))
+                        app = parsedState.app || 'devconsole'
+                    } catch (e) {
+                        console.error('Failed to parse state in error handler:', state, e)
+                        app = 'devconsole'
+                    }
+                }
                 router.push(`/auth?app=${app}`)
             }
         }
