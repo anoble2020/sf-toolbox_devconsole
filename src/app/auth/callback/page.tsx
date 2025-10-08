@@ -109,7 +109,8 @@ function CallbackContent() {
                 // Always ensure we redirect to devconsole for now
                 const redirectUrl = '/devconsole/dashboard'
                 console.log('Final redirect URL:', redirectUrl)
-                window.location.href = redirectUrl
+                // Force a hard redirect to prevent cache issues
+                window.location.replace(redirectUrl)
             } catch (error) {
                 console.error('=== AUTH CALLBACK ERROR ===')
                 console.error('Auth callback error:', error)
