@@ -1,31 +1,73 @@
 import Link from 'next/link'
-import { Terminal, BookOpen, Info, ArrowRight } from 'lucide-react'
+import { Terminal, BookOpen, Info, ArrowRight, Github, Coffee } from 'lucide-react'
 
 export default function HomePage() {
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-            <div className="container mx-auto px-4 py-16">
-                {/* Header */}
-                <div className="text-center mb-16">
-                    <div className="flex items-center justify-center mb-6">
-                        <img src="/icon_128_purp.png" alt="sf toolbox" className="w-16 h-16 mr-4" />
-                        <h1 className="text-5xl font-bold text-gray-900 dark:text-white">
-                            sf toolbox
-                        </h1>
+        <div className="min-h-screen bg-gradient-to-br from-white to-slate-100 dark:from-gray-900 dark:to-gray-800 flex flex-col">
+            {/* Navigation */}
+            <nav className="border-b border-gray-200 dark:border-gray-700">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex justify-between items-center h-16">
+                        <div className="flex items-center">
+                            <img src="/icon_128_purp.png" alt="sf toolbox" className="w-8 h-8 mr-3" />
+                            <span className="text-xl font-semibold text-gray-900 dark:text-white">sf toolbox</span>
+                        </div>
+                        <div className="flex items-center space-x-4">
+                            <a
+                                href="https://github.com/anoble2020/sf-toolbox"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                            >
+                                <Github className="w-5 h-5" />
+                            </a>
+                            <a
+                                href="https://buymeacoffee.com/alexandernoble"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                            >
+                                <Coffee className="w-5 h-5" />
+                            </a>
+                        </div>
                     </div>
-                    <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-                        A comprehensive suite of Salesforce development tools to streamline your workflow and boost productivity.
+                </div>
+            </nav>
+
+            <div className="flex-1">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+                {/* Hero Section */}
+                <div className="text-center mb-40">
+                    <h1 className="text-6xl font-bold text-gray-900 dark:text-white mb-6">
+                        sf toolbox
+                    </h1>
+                    <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto mb-8">
+                        A (soon to be) comprehensive suite of Salesforce development tools to streamline your workflow and boost productivity.
                     </p>
+                    <div className="flex justify-center space-x-4">
+                        <Link 
+                            href="/devconsole/dashboard"
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors"
+                        >
+                            Launch DevConsole
+                        </Link>
+                        <Link 
+                            href="/docs"
+                            className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 px-8 py-3 rounded-lg font-medium transition-colors"
+                        >
+                            View Documentation
+                        </Link>
+                    </div>
                 </div>
 
                 {/* Apps Grid */}
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+                <div className="grid md:grid-cols-3 gap-8 mb-20">
                     {/* DevConsole */}
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
-                        <div className="flex items-center mb-4">
-                            <Terminal className="w-8 h-8 text-blue-600 mr-3" />
-                            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">DevConsole</h3>
+                    <div className="text-center">
+                        <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center mx-auto mb-4">
+                            <Terminal className="w-8 h-8 text-blue-600 dark:text-blue-400" />
                         </div>
+                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">DevConsole</h3>
                         <p className="text-gray-600 dark:text-gray-300 mb-4">
                             Advanced Salesforce development console with debugging, testing, and deployment tools.
                         </p>
@@ -39,11 +81,11 @@ export default function HomePage() {
                     </div>
 
                     {/* Documentation */}
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
-                        <div className="flex items-center mb-4">
-                            <BookOpen className="w-8 h-8 text-green-600 mr-3" />
-                            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Documentation</h3>
+                    <div className="text-center">
+                        <div className="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center mx-auto mb-4">
+                            <BookOpen className="w-8 h-8 text-green-600 dark:text-green-400" />
                         </div>
+                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Documentation</h3>
                         <p className="text-gray-600 dark:text-gray-300 mb-4">
                             Comprehensive guides, tutorials, and API documentation for all sf toolbox applications.
                         </p>
@@ -57,11 +99,11 @@ export default function HomePage() {
                     </div>
 
                     {/* About */}
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
-                        <div className="flex items-center mb-4">
-                            <Info className="w-8 h-8 text-purple-600 mr-3" />
-                            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">About</h3>
+                    <div className="text-center">
+                        <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center mx-auto mb-4">
+                            <Info className="w-8 h-8 text-purple-600 dark:text-purple-400" />
                         </div>
+                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">About</h3>
                         <p className="text-gray-600 dark:text-gray-300 mb-4">
                             Learn more about sf toolbox, its mission, and the resources available to developers.
                         </p>
@@ -74,43 +116,22 @@ export default function HomePage() {
                         </Link>
                     </div>
                 </div>
-
-                {/* Features Section */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">
-                        Why Choose sf toolbox?
-                    </h2>
-                    <div className="grid md:grid-cols-3 gap-6">
-                        <div className="text-center">
-                            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center mx-auto mb-4">
-                                <Terminal className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                            </div>
-                            <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Developer-Focused</h3>
-                            <p className="text-gray-600 dark:text-gray-300 text-sm">
-                                Built by developers, for developers. Every tool is designed with productivity in mind.
-                            </p>
-                        </div>
-                        <div className="text-center">
-                            <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center mx-auto mb-4">
-                                <BookOpen className="w-6 h-6 text-green-600 dark:text-green-400" />
-                            </div>
-                            <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Well Documented</h3>
-                            <p className="text-gray-600 dark:text-gray-300 text-sm">
-                                Comprehensive documentation and examples to help you get started quickly.
-                            </p>
-                        </div>
-                        <div className="text-center">
-                            <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center mx-auto mb-4">
-                                <Info className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-                            </div>
-                            <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Open Source</h3>
-                            <p className="text-gray-600 dark:text-gray-300 text-sm">
-                                Free and open source. Contribute, customize, and help improve the tools.
-                            </p>
-                        </div>
-                    </div>
                 </div>
             </div>
+            
+            {/* Footer */}
+            <footer className="bg-slate-100 dark:bg-gray-800 border-t border-slate-200 dark:border-gray-700 mt-auto">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                    <div className="text-center">
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                            Tools created by Alexander Noble © 2024
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-500">
+                            These tools are not created, supported or endorsed by Salesforce.com. Use at your own risk and discretion.
+                        </p>
+                    </div>
+                </div>
+            </footer>
         </div>
     )
 }

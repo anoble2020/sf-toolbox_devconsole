@@ -3,7 +3,7 @@ import { BookOpen, Code, Terminal, ArrowLeft } from 'lucide-react'
 
 export default function DocsPage() {
     return (
-        <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 dark:from-gray-900 dark:to-gray-800">
+        <div className="min-h-screen bg-gradient-to-br from-white to-slate-100 dark:from-gray-900 dark:to-gray-800">
             <div className="container mx-auto px-4 py-16">
                 {/* Header */}
                 <div className="mb-8">
@@ -15,7 +15,7 @@ export default function DocsPage() {
                         Back to Home
                     </Link>
                     <div className="flex items-center mb-6">
-                        <BookOpen className="w-8 h-8 text-green-600 mr-3" />
+                        <BookOpen className="w-8 h-8 text-blue-600 mr-3" />
                         <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
                             Documentation
                         </h1>
