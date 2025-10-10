@@ -1,5 +1,5 @@
-# sf toolbox
-sf toolbox is an open-source Salesforce developer console replacement designed to enhance productivity and streamline development workflows. This project provides a suite of tools and features tailored for Salesforce developers.
+# sf toolbox - dev console
+sf toolbox's "dev console" is an open-source Salesforce developer console replacement designed to enhance productivity and streamline development workflows. This project provides a suite of tools and features tailored for Salesforce developers.
 
 ![Website Deploy](https://deploy-badge.vercel.app/?url=http://www.nextjs.org/&name=sf-toolbox.com)
 
@@ -20,7 +20,7 @@ sf toolbox is an open-source Salesforce developer console replacement designed t
 
 ## Connecting a Salesforce Org
 
-sf toolbox provides two primary methods for connecting to your Salesforce org: through a Chrome extension or by logging in directly via the application interface.
+sf toolbox dev console provides two primary methods for connecting to your Salesforce org: through a Chrome extension or by logging in directly via the application interface.
 
 ### Method 1: Using the Chrome Extension
 
@@ -34,7 +34,7 @@ sf toolbox provides two primary methods for connecting to your Salesforce org: t
 
 ### Method 2: Direct Login via Application
 
-1. **Navigate to the Auth Page**: Open the SF Toolbox application and navigate to the authentication page.
+1. **Navigate to the Auth Page**: Open the SF Toolbox Dev Console application and navigate to the authentication page.
 
 2. **Choose Domain**: Choose to connect either a sandbox or production org, or optionally input your custom Salesforce domain in the format `my-domain.my.salesforce.com`
 
