@@ -1,7 +1,7 @@
 # sf toolbox - dev console
 sf toolbox's "dev console" is an open-source Salesforce developer console replacement designed to enhance productivity and streamline development workflows. This project provides a suite of tools and features tailored for Salesforce developers.
 
-![Website Deploy](https://deploy-badge.vercel.app/?url=http://www.nextjs.org/&name=sf-toolbox.com)
+![Website Deploy](https://deploy-badge.vercel.app/?url=http://www.nextjs.org/&name=sf-toolbox.com/devconsole)
 
 
 ## Key Features
