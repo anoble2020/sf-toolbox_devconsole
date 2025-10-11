@@ -5,6 +5,7 @@ import { GeistMono } from 'geist/font/mono'
 import './globals.css'
 import { Toaster } from '@/components/ui/sonner'
 import { ThemeProvider } from '@/providers/ThemeProvider'
+import { Navigation } from '@/components/Navigation'
 import { Loader2 } from 'lucide-react'
 
 export const metadata: Metadata = {
@@ -38,14 +39,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     enableSystem
                     disableTransitionOnChange
                 >
-                    <Suspense fallback={
-                        <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-50">
-                            <Loader2 className="w-6 h-6 animate-spin text-gray-500" />
-                        </div>
-                    }>
-                        {children}
+                    <div className="min-h-screen bg-background">
+                        <Navigation />
+                        <main className="pt-2">
+                            <Suspense fallback={
+                                <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-50">
+                                    <Loader2 className="w-6 h-6 animate-spin text-gray-500" />
+                                </div>
+                            }>
+                                {children}
+                            </Suspense>
+                        </main>
                         <Toaster />
-                    </Suspense>
+                    </div>
                 </ThemeProvider>
             </body>
         </html>
