@@ -95,8 +95,6 @@ export function Navigation() {
               <Link
                 key={item.name}
                 href={item.href}
-                target={item.external ? '_blank' : undefined}
-                rel={item.external ? 'noopener noreferrer' : undefined}
                 className={cn(
                   'block px-3 py-2 rounded-md text-base font-medium transition-colors',
                   pathname === item.href
