@@ -28,8 +28,6 @@ export function Navigation() {
               <Link
                 key={item.name}
                 href={item.href}
-                target={item.external ? '_blank' : undefined}
-                rel={item.external ? 'noopener noreferrer' : undefined}
                 className={cn(
                   'transition-colors hover:text-foreground/80',
                   pathname === item.href ? 'text-foreground' : 'text-foreground/60'
