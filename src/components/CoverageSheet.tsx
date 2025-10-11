@@ -99,7 +99,7 @@ export function CoverageSheet({ open, onOpenChange }: CoverageSheetProps) {
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="right" size="large" className="overflow-x-hidden">
+            <SheetContent side="right" className="overflow-x-hidden w-[600px] sm:w-[800px]">
                 <SheetHeader>
                     <SheetTitle>Test Coverage</SheetTitle>
                 </SheetHeader>
