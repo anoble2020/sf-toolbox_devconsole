@@ -219,7 +219,7 @@ function ExploreContent() {
                             const org = searchParams.get('org')
                             const params = new URLSearchParams({ id, type })
                             if (org) params.set('org', org)
-                            router.push(`/explore?${params.toString()}`)
+                            router.push(`/devconsole/explore?${params.toString()}`)
                             setIsModalOpen(false)
                         }}
                         files={files}
@@ -257,7 +257,7 @@ function ExploreContent() {
                             const org = searchParams.get('org')
                             const params = new URLSearchParams({ id, type })
                             if (org) params.set('org', org)
-                            router.push(`/explore?${params.toString()}`)
+                            router.push(`/devconsole/explore?${params.toString()}`)
                             setIsModalOpen(false)
                         }}
                         files={files}
@@ -271,7 +271,7 @@ function ExploreContent() {
                         const org = searchParams.get('org')
                         const params = new URLSearchParams()
                         if (org) params.set('org', org)
-                        router.push(`/explore${params.toString() ? `?${params.toString()}` : ''}`)
+                        router.push(`/devconsole/explore${params.toString() ? `?${params.toString()}` : ''}`)
                         setFile(null)
                     }}
                 >

@@ -1,10 +1,12 @@
 import Link from 'next/link'
 import { Info, Github, Coffee, ArrowLeft, Heart, Users, Code2, Zap, Settings } from 'lucide-react'
+import { Navigation } from '@/components/Navigation'
 
 export default function AboutPage() {
     return (
         <div className="min-h-screen bg-background">
-            <div className="container mx-auto px-4 py-16">
+            <Navigation />
+            <div className="container mx-auto px-4 py-16 pt-20">
                 {/* Header */}
                 <div className="mb-8">
                     <div className="flex items-center mb-6">

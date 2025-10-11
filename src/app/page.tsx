@@ -1,11 +1,12 @@
 import Link from 'next/link'
 import { Terminal, BookOpen, Info, ArrowRight, Github, Coffee, Zap, Settings, ExternalLink, Star, Download, Code } from 'lucide-react'
+import { Navigation } from '@/components/Navigation'
 
 export default function HomePage() {
     return (
         <div className="min-h-screen bg-background">
-
-            <div className="flex-1">
+            <Navigation />
+            <div className="flex-1 pt-14">
                 <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16">
                 {/* Hero Section */}
                 <div className="text-center mb-20">

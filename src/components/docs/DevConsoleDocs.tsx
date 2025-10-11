@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Code, Terminal, BookOpen, Bug, Star, ExternalLink, Zap, Settings, Search, Play, FlaskConical, Telescope } from 'lucide-react'
+import { Code, Terminal, BookOpen, Bug, Star, ExternalLink, Zap, Settings, Search, Play, FlaskConical, Telescope, Flag } from 'lucide-react'
 import Link from 'next/link'
 
 export function DevConsoleDocs() {
@@ -464,6 +464,125 @@ export function DevConsoleDocs() {
               <p className="text-muted-foreground">
                 If you encounter issues or need assistance, check the documentation or reach out for support.
               </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Trace Flags */}
+      <Card id="trace-flags">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Flag className="w-5 h-5" />
+            Trace Flags
+          </CardTitle>
+          <CardDescription>
+            Manage debug trace flags for enhanced logging and debugging
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-4">
+            <div>
+              <h4 className="font-semibold mb-2">Debug Trace Management</h4>
+              <p className="text-muted-foreground">
+                Create and manage debug trace flags to control logging levels and capture detailed debug information for your development and testing processes.
+              </p>
+            </div>
+            
+            <div>
+              <h4 className="font-semibold mb-2">Features</h4>
+              <ul className="space-y-1 text-muted-foreground">
+                <li>• Create new trace flags for users and automated processes</li>
+                <li>• Set debug levels (ERROR, WARN, INFO, DEBUG, FINE, FINER, FINEST)</li>
+                <li>• Configure log categories and retention periods</li>
+                <li>• Monitor trace flag status and expiration</li>
+                <li>• Bulk operations for multiple trace flags</li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-semibold mb-2">Use Cases</h4>
+              <ul className="space-y-1 text-muted-foreground">
+                <li>• Debug complex Apex code execution</li>
+                <li>• Monitor automated process performance</li>
+                <li>• Troubleshoot integration issues</li>
+                <li>• Track user activity and behavior</li>
+                <li>• Optimize code performance</li>
+              </ul>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Org Exploration */}
+      <Card id="org-exploration">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Telescope className="w-5 h-5" />
+            Org Exploration
+          </CardTitle>
+          <CardDescription>
+            Browse and explore your Salesforce org's code components and metadata
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-4">
+            <div>
+              <h4 className="font-semibold mb-2">Code Component Browser</h4>
+              <p className="text-muted-foreground">
+                Explore your org's Apex classes, triggers, and Lightning components in an organized, searchable interface. View code content, metadata details, and component relationships.
+              </p>
+            </div>
+            
+            <div>
+              <h4 className="font-semibold mb-2">Current Features</h4>
+              <ul className="space-y-1 text-muted-foreground">
+                <li>• Browse Apex classes and triggers</li>
+                <li>• View Lightning Web Components (LWC)</li>
+                <li>• Explore Aura components</li>
+                <li>• Search and filter by component name</li>
+                <li>• View component metadata and properties</li>
+                <li>• Access component source code</li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-semibold mb-2">Supported Component Types</h4>
+              <ul className="space-y-1 text-muted-foreground">
+                <li>• Apex Classes</li>
+                <li>• Apex Triggers</li>
+                <li>• Lightning Web Components (LWC)</li>
+                <li>• Aura Components</li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-semibold mb-2">Coming Soon</h4>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">Coming Soon</Badge>
+                  <span className="text-muted-foreground">Custom Objects and Fields exploration</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">Coming Soon</Badge>
+                  <span className="text-muted-foreground">Metadata dependencies and relationships</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">Coming Soon</Badge>
+                  <span className="text-muted-foreground">Flows and Process Builders</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-semibold mb-2">Benefits</h4>
+              <ul className="space-y-1 text-muted-foreground">
+                <li>• Quickly locate and review code components</li>
+                <li>• Understand component structure and relationships</li>
+                <li>• Access source code for debugging and maintenance</li>
+                <li>• Search across all code components efficiently</li>
+                <li>• Streamline code review and documentation processes</li>
+              </ul>
             </div>
           </div>
         </CardContent>
