@@ -7,7 +7,7 @@ import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tool
 import { refreshAccessToken } from '@/lib/auth'
 import { formatInTimeZone } from 'date-fns-tz'
 import { storage } from '@/lib/storage'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 
 function DashboardContent() {
     const [timeRange] = useState('24h')
@@ -16,6 +16,7 @@ function DashboardContent() {
     const [orgData, setOrgData] = useState<any>(null)
     const [userTimezone, setUserTimezone] = useState<string | null>(null)
     const searchParams = useSearchParams()
+    const router = useRouter()
 
     useEffect(() => {
         console.log('Dashboard mounted');
@@ -63,7 +64,19 @@ function DashboardContent() {
                 setOrgData(data);
             } catch (err) {
                 console.error('Error in fetchOrgData:', err);
-                setError(err instanceof Error ? err.message : 'Failed to fetch org data');
+                const errorMessage = err instanceof Error ? err.message : 'Failed to fetch org data';
+                
+                // If it's an authentication error, redirect to auth
+                if (errorMessage.includes('No current domain') || 
+                    errorMessage.includes('No refresh token') ||
+                    errorMessage.includes('Unauthorized') ||
+                    errorMessage.includes('401')) {
+                    console.log('Authentication error, redirecting to auth');
+                    router.push('/auth?app=devconsole');
+                    return;
+                }
+                
+                setError(errorMessage);
             } finally {
                 setLoading(false);
             }
