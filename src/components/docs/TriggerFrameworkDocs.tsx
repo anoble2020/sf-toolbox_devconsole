@@ -29,7 +29,7 @@ export function TriggerFrameworkDocs() {
         <CardHeader>
           <CardTitle>Overview</CardTitle>
           <CardDescription>
-            A personal, lightweight Apex trigger framework designed to streamline trigger management in Salesforce with clean architecture and best practices.
+            A lightweight Apex trigger framework designed to streamline trigger management in Salesforce with clean architecture and best practices.
           </CardDescription>
         </CardHeader>
         <CardContent>

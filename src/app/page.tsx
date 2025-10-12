@@ -141,7 +141,7 @@ export default function HomePage() {
                                     </div>
                                 </div>
                                 <p className="text-muted-foreground mb-6">
-                                    A personal, lightweight Apex trigger framework designed to streamline trigger management 
+                                    A lightweight Apex trigger framework designed to streamline trigger management 
                                     in Salesforce with clean architecture and best practices.
                                 </p>
                                 <div className="space-y-3">
