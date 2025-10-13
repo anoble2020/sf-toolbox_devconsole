@@ -302,8 +302,8 @@ export function LogViewer({ logs = [], isLoading, onCloseLog, tabStates, setTabS
                 value={activeTab}
                 onValueChange={(value) => setActiveTab(value)}
             >
-                {/* Controls bar - full width with proper spacing */}
-                <div className="flex-none border-b border-gray-200 dark:border-gray-800 p-2">
+                {/* Sticky Controls bar - full width with proper spacing */}
+                <div className="sticky top-0 z-40 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 p-2">
                     <div className="flex items-center justify-between w-full">
                         {/* Left side with search */}
                         <div className="flex items-center gap-2 flex-1">
@@ -352,8 +352,8 @@ export function LogViewer({ logs = [], isLoading, onCloseLog, tabStates, setTabS
                     </div>
                 </div>
 
-                {/* Tabs bar with close button */}
-                <div className="flex-none border-b border-gray-200 dark:border-gray-800">
+                {/* Sticky Tabs bar with close button */}
+                <div className="sticky z-30 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800" style={{ top: '53px' }}>
                     <TabsList className="w-full justify-start px-2">
                         {logs.map((log) => (
                             <TabsTrigger 

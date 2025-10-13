@@ -163,17 +163,19 @@ export function LogsTable({
     return (
         <div
             className={cn(
-                'fixed bottom-0 left-64 right-0 bg-background border-t border-gray-200 transition-all duration-300 z-40',
-                isCollapsed ? 'h-12' : '',
+                'fixed bottom-0 left-64 right-0 bg-background transition-all duration-300 z-40',
+                isCollapsed ? 'h-8 border-t-0' : 'border-t border-gray-200',
             )}
-            style={{ height: isCollapsed ? '48px' : `${tableHeight}px` }}
+            style={{ height: isCollapsed ? '32px' : `${tableHeight}px` }}
         >
             {/* Resize handle */}
-            <div
-                ref={resizeRef}
-                className="absolute -top-1 left-0 right-0 h-2 cursor-ns-resize hover:bg-gray-200"
-                onMouseDown={() => setIsResizing(true)}
-            />
+            {!isCollapsed && (
+                <div
+                    ref={resizeRef}
+                    className="absolute -top-1 left-0 right-0 h-2 cursor-ns-resize hover:bg-gray-200"
+                    onMouseDown={() => setIsResizing(true)}
+                />
+            )}
 
             {/* Table controls */}
             <div className="absolute -top-8 right-4 flex gap-2">
