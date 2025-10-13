@@ -191,7 +191,7 @@ export default function HomePage() {
                 {/* Features Section */}
                 <div className="mb-20">
                     <div className="text-center mb-12">
-                        <h2 className="text-3xl font-bold text-foreground mb-4">Why Choose sf toolbox?</h2>
+                        <h2 className="text-3xl font-bold text-foreground mb-4">Why choose sf toolbox?</h2>
                         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
                             Built by developers, for developers. Our tools are designed to solve real-world Salesforce development challenges.
                         </p>
