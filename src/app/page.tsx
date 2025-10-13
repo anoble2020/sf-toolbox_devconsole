@@ -7,14 +7,28 @@ export default function HomePage() {
         <div className="min-h-screen bg-background">
             <Navigation />
             <div className="flex-1 pt-14">
-                <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16">
+                <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 {/* Hero Section */}
                 <div className="text-center mb-20">
-                    <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-6">
-                        sf toolbox
-                    </h1>
-                    <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
-                        A comprehensive suite of Salesforce development tools and frameworks to streamline your workflow and boost productivity.
+                    {/* Header with Video */}
+                    <div className="flex items-center justify-center gap-4 mb-6">
+                        <video 
+                            autoPlay 
+                            loop 
+                            muted 
+                            playsInline
+                            className="w-16 h-16 md:w-20 md:h-20 rounded-lg"
+                        >
+                            <source src="/sftoolbox_animated_digital.mp4" type="video/mp4" />
+                            Your browser does not support the video tag.
+                        </video>
+                        <h1 className="text-5xl md:text-6xl font-bold text-foreground">
+                            sf toolbox
+                        </h1>
+                    </div>
+                    
+                    <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
+                        A suite of Salesforce development tools and frameworks to streamline your workflow and boost productivity.
                     </p>
                     <div className="flex flex-col sm:flex-row justify-center gap-4">
                         <Link 
@@ -37,7 +51,7 @@ export default function HomePage() {
                     <div className="text-center mb-12">
                         <h2 className="text-3xl font-bold text-foreground mb-4">Development Tools & Frameworks</h2>
                         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                            A comprehensive suite of tools designed to enhance your Salesforce development experience
+                            Tools designed to enhance your Salesforce development experience
                         </p>
                     </div>
 
