@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Input } from '@/components/ui/input'
-import { Search, LineChart, Bug, Code, Workflow, Database, MousePointerClick, Scale, Loader2 } from 'lucide-react'
+import { Search, LineChart, MousePointerClick, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
@@ -13,181 +13,23 @@ import { formatLogs } from '@/lib/logFormatter'
 import { LogViewerProps, TabState } from '@/lib/types'
 import { X } from 'lucide-react'
 import { formatLogTime } from '@/lib/utils'
+import { LogRendererDispatcher } from '@/components/logRenderers'
 
 interface CollapsibleLine {
     id: string
     time: string
     summary: string
     details?: string
-    type: 'SOQL' | 'JSON' | 'STANDARD' | 'LIMITS' | 'CODE_UNIT' | 'FLOW' | 'DEBUG' | 'DML' | 'VALIDATION'
+    type: 'SOQL' | 'JSON' | 'STANDARD' | 'LIMITS' | 'CODE_UNIT' | 'FLOW' | 'DEBUG' | 'DML' | 'VALIDATION' | 'CALLOUT' | 'VF_PAGE' | 'METHOD_ENTRY' | 'METHOD_EXIT' | 'DUPLICATE_DETECTION' | 'USER_INFO' | 'VARIABLE_ASSIGNMENT'
     isCollapsible?: boolean
     nestLevel?: number
     isSelected?: boolean
     originalIndex?: number
 }
 
-const renderSqlWithBoldKeywords = (text: string) => {
-    // Split on markdown-style bold markers
-    const parts = text.split(/(\*\*.*?\*\*)/g)
-    return parts.map((part, index) => {
-        if (part.startsWith('**') && part.endsWith('**')) {
-            // Remove the markers and render bold
-            return (
-                <span key={index} className="font-bold">
-                    {part.slice(2, -2)}
-                </span>
-            )
-        }
-        return <span key={index}>{part}</span>
-    })
-}
-
-const IconContainer = ({ children, color }: { children: React.ReactNode; color: string }) => (
-    <div 
-        className="flex items-center justify-center w-8 h-8 rounded-full shrink-0" 
-        style={{ backgroundColor: color }}
-    >
-        <div className="w-4 h-4 flex items-center justify-center">
-            {children}
-        </div>
-    </div>
-)
-
-// Helper function to ensure consistent timestamp formatting
-const formatTimestamp = (timestamp: string) => {
-    // Remove any extra spaces and ensure consistent format
-    return timestamp.trim()
-}
-
-const renderSoqlLine = (content: string) => {
-    const [timestamp, ...rest] = content.split(/\s*\|\s*/)
-    const mainContent = rest.join(' | ')
-    const statsMatch = mainContent.match(/\| (Aggregations: \d+ \| Rows: \d+)$/)
-    const stats = statsMatch ? statsMatch[1] : ''
-    const query = statsMatch ? mainContent.replace(statsMatch[0], '') : mainContent
-
-    return (
-        <div className="flex items-center gap-3 w-full">
-            <span className="text-gray-600 min-w-[60px]">{formatTimestamp(timestamp)}</span>
-            <IconContainer color="#484b6a">
-                <Search className="text-white" />
-            </IconContainer>
-            <span className="flex-1">{renderSqlWithBoldKeywords(query)}</span>
-            {stats && <span className="text-gray-600 whitespace-nowrap">{stats}</span>}
-        </div>
-    )
-}
-
-const renderFlowLine = (content: string) => {
-    const [timestamp, ...rest] = content.split(/\s*\|\s*/)
-    return (
-        <div className="flex items-center gap-3">
-            <span className="text-gray-600 min-w-[60px]">{formatTimestamp(timestamp)}</span>
-            <IconContainer color="#3a49ee">
-                <Workflow className="text-white" />
-            </IconContainer>
-            <span>{rest.join(' | ')}</span>
-        </div>
-    )
-}
-
-const renderCodeUnitLine = (content: string) => {
-    const [timestamp, ...rest] = content.split(/\s*\|\s*/)
-    return (
-        <div className="flex items-center gap-3">
-            <span className="text-gray-600 min-w-[60px]">{formatTimestamp(timestamp)}</span>
-            <IconContainer color="#94e591">
-                <Code className="text-white" />
-            </IconContainer>
-            <span>{rest.join(' | ')}</span>
-        </div>
-    )
-}
-
-const renderDebugLine = (content: string) => {
-    const [timestamp, ...rest] = content.split(/\s*\|\s*/)
-    return (
-        <div className="flex items-center gap-3">
-            <span className="text-gray-600 min-w-[60px]">{formatTimestamp(timestamp)}</span>
-            <IconContainer color="#f1ad48">
-                <Bug className="text-white" />
-            </IconContainer>
-            <span>{rest.join(' | ')}</span>
-        </div>
-    )
-}
-
-const renderDmlLine = (content: string) => {
-    const [timestamp, ...parts] = content.split(/\s*\|\s*/)
-    
-    // Check if this line includes row count
-    const rowsMatch = parts.join(' | ').match(/Rows: (\d+)$/)
-    const rows = rowsMatch ? rowsMatch[1] : null
-
-    // Remove rows from main content if it exists
-    const mainContent = rows ? parts.join(' | ').replace(` | Rows: ${rows}`, '') : parts.join(' | ')
-
-    return (
-        <div className="flex items-center gap-3 w-full">
-            <span className="text-gray-600 min-w-[60px]">{formatTimestamp(timestamp)}</span>
-            <IconContainer color="#ee4de1">
-                <Database className="text-white" />
-            </IconContainer>
-            <span className="flex-1">{mainContent}</span>
-            {rows && <span className="text-gray-600 whitespace-nowrap">Rows: {rows}</span>}
-        </div>
-    )
-}
-
-const renderValidationLine = (content: string, details?: string) => {
-    const [timestamp, ...rest] = content.split(/\s*\|\s*/)
-    return (
-        <div className="flex flex-col">
-            {/* Header row */}
-            <div className="flex gap-3">
-                <div className="shrink-0">
-                    <span className="text-gray-600 min-w-[60px] block">{formatTimestamp(timestamp)}</span>
-                </div>
-                <div className="flex-1 flex items-start gap-3">
-                    <IconContainer color="#9333ea">
-                        <Scale className="text-white" />
-                    </IconContainer>
-                    <span>{rest.join(' | ')}</span>
-                </div>
-            </div>
-            {/* Formula row - aligned with content above */}
-            {details && (
-                <div className="flex gap-3">
-                    <div className="shrink-0 min-w-[60px]" /> {/* Spacer for timestamp */}
-                    <div className="flex-1 flex gap-3">
-                        <div className="w-8" /> {/* Spacer for icon */}
-                        <div className="flex-1 font-mono text-sm whitespace-pre-wrap">
-                            {details}
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
-    )
-}
 
 const renderContent = (line: CollapsibleLine) => {
-    switch (line.type) {
-        case 'SOQL':
-            return renderSoqlLine(line.summary)
-        case 'FLOW':
-            return renderFlowLine(line.summary)
-        case 'CODE_UNIT':
-            return renderCodeUnitLine(line.summary)
-        case 'DEBUG':
-            return renderDebugLine(line.summary)
-        case 'DML':
-            return renderDmlLine(line.summary)
-        case 'VALIDATION':
-            return renderValidationLine(line.summary, line.details)
-        default:
-            return <span>{line.summary}</span>
-    }
+    return <LogRendererDispatcher line={line} />
 }
 
 export function LogViewer({ logs = [], isLoading, onCloseLog, tabStates, setTabStates, activeLogId }: LogViewerProps) {

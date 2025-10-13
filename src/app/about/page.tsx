@@ -16,7 +16,7 @@ export default function AboutPage() {
                         </h1>
                     </div>
                     <p className="text-xl text-muted-foreground max-w-3xl">
-                        A comprehensive suite of Salesforce development tools and frameworks designed to streamline your workflow and boost productivity.
+                        A suite of Salesforce development tools and frameworks designed to streamline your workflow and boost productivity.
                     </p>
                 </div>
 
