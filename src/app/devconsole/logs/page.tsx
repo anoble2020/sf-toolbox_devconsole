@@ -186,6 +186,7 @@ export default function LogsPage() {
           searchQuery: '',
           showTimeline: false,
           showReplay: false,
+          showIndented: false,
           selectedLine: null,
           expandedLines: new Set(),
           selectedLineContent: {
