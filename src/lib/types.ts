@@ -43,4 +43,5 @@ export interface TabState {
         pretty: string | null
         raw: string | null
     }
+    enabledLineTypes: Set<string>
 }

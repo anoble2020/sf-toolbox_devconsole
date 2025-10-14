@@ -131,41 +131,26 @@ export function formatLogLine(line: string, originalIndex: number, allLines: str
         }
 
         const isStart = cleanLine.includes('CODE_UNIT_STARTED')
-        let triggerName, eventType
-
-        // Debug log to see what we're trying to match
-        console.log('Attempting to match CODE_UNIT line:', cleanLine)
-
-        if (isStart) {
-            // Updated trigger pattern to be more precise
-            const startMatch = cleanLine.match(/CODE_UNIT_STARTED\|[^|]+\|([^|]+?)(?= on).*?trigger event (\w+)/)
-            console.log('startMatch', startMatch)
-            if (startMatch) {
-                console.log('Matched START:', startMatch)
-                const [, trigger, event] = startMatch
-                triggerName = trigger
-                eventType = event
-            }
-        } else {
-            const finishMatch = cleanLine.match(
-                /CODE_UNIT_FINISHED\|([^|]+?)(?= on \w+ trigger event ).*?trigger event ([^|]+)/,
-            )
-            if (finishMatch) {
-                const [, trigger, event] = finishMatch
-                triggerName = trigger
-                eventType = event
-            }
-        }
-
-        if (triggerName && eventType) {
+        
+        // More flexible pattern to match any CODE_UNIT line
+        const codeUnitMatch = cleanLine.match(/CODE_UNIT_(STARTED|FINISHED)\|(?:\[EXTERNAL\]\|)?([^|]+)(?:\|([^|]+))?/)
+        
+        if (codeUnitMatch) {
+            const [, eventType, id, name] = codeUnitMatch
+            const displayName = name || id
+            
+            console.log('CODE_UNIT matched:', { eventType, id, name, displayName, isStart })
+            
             return {
                 id: baseId,
                 time,
-                summary: `${time} | ${isStart ? 'TRIGGER START' : 'TRIGGER FINISH'} | ${triggerName} | ${eventType}`,
+                summary: `${time} | ${isStart ? 'CODE UNIT START' : 'CODE UNIT FINISH'} | ${displayName}`,
                 type: 'CODE_UNIT',
                 isCollapsible: false,
                 originalIndex,
             }
+        } else {
+            console.log('CODE_UNIT line did not match pattern:', cleanLine)
         }
     } else if (cleanLine.includes('FLOW_')) {
         // Handle Flow start/finish lines
@@ -609,7 +594,12 @@ export function formatLogs(lines: string[]): FormattedLine[] {
                 if (nextLine.includes('VALIDATION_PASS') || 
                     nextLine.includes('VALIDATION_FAIL') ||
                     nextLine.includes('CODE_UNIT_FINISHED')) {
-                    skipUntilIndex = validLines[j].originalIndex
+                    // Don't skip the CODE_UNIT_FINISHED line itself, just mark it as the end
+                    if (nextLine.includes('CODE_UNIT_FINISHED')) {
+                        skipUntilIndex = validLines[j].originalIndex - 1
+                    } else {
+                        skipUntilIndex = validLines[j].originalIndex
+                    }
                     break
                 }
                 j++
@@ -670,8 +660,7 @@ export function formatLogs(lines: string[]): FormattedLine[] {
         // Handle regular lines when not collecting limits
         if (!collectingLimits && 
             !content.includes('CUMULATIVE_LIMIT_USAGE') && 
-            !content.includes('SOQL_EXECUTE_BEGIN') &&
-            !content.includes('CODE_UNIT_STARTED')
+            !content.includes('SOQL_EXECUTE_BEGIN')
         ) {
             const formattedLine = formatLogLine(content, originalIndex, lines)
             if (formattedLine) {

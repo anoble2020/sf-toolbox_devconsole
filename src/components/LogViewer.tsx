@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Input } from '@/components/ui/input'
-import { Search, LineChart, MousePointerClick, Loader2 } from 'lucide-react'
+import { Search, LineChart, MousePointerClick, Loader2, Filter, Database, Code, Bug, Workflow, Scale, Globe, FileText, ArrowRight, ArrowLeft, Shield, User, Hash } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem } from '@/components/ui/dropdown-menu'
 import { TraceViewer } from '@/components/TraceViewer'
 import { LogReplay } from '@/components/LogReplay'
 import { formatLogs } from '@/lib/logFormatter'
@@ -26,6 +27,25 @@ interface CollapsibleLine {
     isSelected?: boolean
     originalIndex?: number
 }
+
+const LINE_TYPES = [
+    { value: 'SOQL', label: 'SOQL Queries', icon: Search, color: '#484b6a' },
+    { value: 'DML', label: 'DML Operations', icon: Database, color: '#ee4de1' },
+    { value: 'DEBUG', label: 'Debug Statements', icon: Bug, color: '#f1ad48' },
+    { value: 'LIMITS', label: 'Governor Limits', icon: null, color: '#E8EEFF' },
+    { value: 'CODE_UNIT', label: 'Code Units', icon: Code, color: '#94e591' },
+    { value: 'FLOW', label: 'Flow Executions', icon: Workflow, color: '#3a49ee' },
+    { value: 'VALIDATION', label: 'Validation Rules', icon: Scale, color: '#9333ea' },
+    { value: 'CALLOUT', label: 'Callouts', icon: Globe, color: '#10b981' },
+    { value: 'VF_PAGE', label: 'Visualforce Pages', icon: FileText, color: '#8b5cf6' },
+    { value: 'METHOD_ENTRY', label: 'Method Entry', icon: ArrowRight, color: '#f59e0b' },
+    { value: 'METHOD_EXIT', label: 'Method Exit', icon: ArrowLeft, color: '#6b7280' },
+    { value: 'DUPLICATE_DETECTION', label: 'Duplicate Detection', icon: Shield, color: '#dc2626' },
+    { value: 'USER_INFO', label: 'User Info', icon: User, color: '#059669' },
+    { value: 'VARIABLE_ASSIGNMENT', label: 'Variable Assignment', icon: Hash, color: '#7c3aed' },
+    { value: 'JSON', label: 'JSON Operations', icon: null, color: null },
+    { value: 'STANDARD', label: 'Standard Logs', icon: null, color: null }
+] as const
 
 
 const renderContent = (line: CollapsibleLine) => {
@@ -59,7 +79,8 @@ export function LogViewer({ logs = [], isLoading, onCloseLog, tabStates, setTabS
                             id: '',
                             pretty: null,
                             raw: null
-                        }
+                        },
+                        enabledLineTypes: new Set(LINE_TYPES.map(type => type.value))
                     }
                 }))
             }
@@ -84,7 +105,8 @@ export function LogViewer({ logs = [], isLoading, onCloseLog, tabStates, setTabS
                             id: '',
                             pretty: null,
                             raw: null
-                        }
+                        },
+                        enabledLineTypes: new Set(LINE_TYPES.map(type => type.value))
                     }
                 }))
             }
@@ -107,7 +129,8 @@ export function LogViewer({ logs = [], isLoading, onCloseLog, tabStates, setTabS
         showReplay: false,
         selectedLine: null,
         expandedLines: new Set(),
-        selectedLineContent: { id: '', pretty: null, raw: null }
+        selectedLineContent: { id: '', pretty: null, raw: null },
+        enabledLineTypes: new Set(LINE_TYPES.map(type => type.value))
     }
 
     // Update state for current tab
@@ -152,8 +175,14 @@ export function LogViewer({ logs = [], isLoading, onCloseLog, tabStates, setTabS
                 const formattedLines = formatLogs(allLines)
                 let filteredFormatted = formattedLines
                 
+                // Filter by enabled line types
+                const enabledTypes = state.enabledLineTypes || new Set(LINE_TYPES.map(type => type.value))
+                filteredFormatted = filteredFormatted.filter((line) => 
+                    enabledTypes.has(line.type)
+                )
+                
                 if (state.debugOnly) {
-                    filteredFormatted = formattedLines.filter((line) => 
+                    filteredFormatted = filteredFormatted.filter((line) => 
                         line.summary.includes('DEBUG')
                     )
                 }
@@ -328,8 +357,82 @@ export function LogViewer({ logs = [], isLoading, onCloseLog, tabStates, setTabS
                                     onCheckedChange={(checked) => updateTabState({ prettyMode: checked })}
                                 />
                                 <Label htmlFor="pretty-mode" className="text-sm text-gray-600 dark:text-white">
-                                    Pretty
+                                    {currentTabState.prettyMode ? 'Pretty' : 'Raw'}
                                 </Label>
+                                {currentTabState.prettyMode && (
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                                <Filter className="h-3 w-3" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-64">
+                                            {/* Select All / Clear All options */}
+                                            <div className="px-2 py-1.5 border-b border-gray-200 dark:border-gray-700">
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-6 px-2 text-xs"
+                                                        onClick={() => {
+                                                            const allTypes = new Set(LINE_TYPES.map(type => type.value))
+                                                            updateTabState({ enabledLineTypes: allTypes })
+                                                        }}
+                                                    >
+                                                        Select All
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-6 px-2 text-xs"
+                                                        onClick={() => {
+                                                            updateTabState({ enabledLineTypes: new Set() })
+                                                        }}
+                                                    >
+                                                        Clear All
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Individual line type filters */}
+                                            {LINE_TYPES.map((lineType) => {
+                                                const enabledTypes = currentTabState.enabledLineTypes || new Set(LINE_TYPES.map(type => type.value))
+                                                const IconComponent = lineType.icon
+                                                return (
+                                                    <DropdownMenuCheckboxItem
+                                                        key={lineType.value}
+                                                        checked={enabledTypes.has(lineType.value)}
+                                                        onCheckedChange={(checked) => {
+                                                            const newEnabledTypes = new Set(enabledTypes)
+                                                            if (checked) {
+                                                                newEnabledTypes.add(lineType.value)
+                                                            } else {
+                                                                newEnabledTypes.delete(lineType.value)
+                                                            }
+                                                            updateTabState({ enabledLineTypes: newEnabledTypes })
+                                                        }}
+                                                        onSelect={(e) => e.preventDefault()}
+                                                        className="flex items-center justify-between"
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            {lineType.color ? (
+                                                                <div 
+                                                                    className="flex items-center justify-center w-6 h-6 rounded-full shrink-0" 
+                                                                    style={{ backgroundColor: lineType.color }}
+                                                                >
+                                                                    {IconComponent && <IconComponent className="w-3 h-3 text-white" />}
+                                                                </div>
+                                                            ) : (
+                                                                <div className="w-6 h-6" />
+                                                            )}
+                                                            <span>{lineType.label}</span>
+                                                        </div>
+                                                    </DropdownMenuCheckboxItem>
+                                                )
+                                            })}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                )}
                             </div>
                             <div className="flex items-center space-x-2">
                                 <Switch
