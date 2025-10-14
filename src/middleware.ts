@@ -6,18 +6,20 @@ export function middleware(request: NextRequest) {
     
     const isAuthPath = request.nextUrl.pathname.startsWith('/auth')
     const isRootPath = request.nextUrl.pathname === '/'
+    const isDocsPath = request.nextUrl.pathname.startsWith('/docs')
+    const isAboutPath = request.nextUrl.pathname.startsWith('/about')
     const hasRefreshToken = request.cookies.get('sf_refresh_token')
     const bypassAuth = process.env.BYPASS_AUTH === 'true'
 
-    // Allow all auth-related paths to proceed
-    if (isAuthPath || isRootPath) {
+    // Allow all public paths to proceed
+    if (isAuthPath || isRootPath || isDocsPath || isAboutPath) {
         return NextResponse.next()
     }
 
     // Only check auth for non-auth paths
     if (!hasRefreshToken && !bypassAuth) {
         console.log('Redirecting to auth from middleware - no refresh token')
-        return NextResponse.redirect(new URL('/auth', request.url))
+        return NextResponse.redirect(new URL('/auth?app=devconsole', request.url))
     }
 
     return NextResponse.next()

@@ -2,6 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  .docs-sidebar {
+    top: 3.5rem !important;
+    height: calc(100vh - 3.5rem) !important;
+  }
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 64px;
+  }
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

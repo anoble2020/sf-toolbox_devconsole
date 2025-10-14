@@ -34,7 +34,7 @@ export default function UserNav({ username, orgDomain, orgId }: UserNavProps) {
             storage.clearDomain(currentDomain)
         }
         document.cookie = 'sf_refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;'
-        router.push('/auth')
+        router.push('/auth?app=devconsole')
     }
 
     return (

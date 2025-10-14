@@ -62,7 +62,74 @@ function tryFormatJson(str: string): {
     }
 }
 
-export function formatLogLine(line: string, originalIndex: number, allLines: string[]): FormattedLine | null {
+function calculateNestLevel(content: string, executionStack: string[], currentNestLevel: number): { newStack: string[], newNestLevel: number } {
+    let newStack = [...executionStack]
+    let newNestLevel = currentNestLevel
+    
+    // Track CODE_UNIT_STARTED and CODE_UNIT_FINISHED for nesting
+    if (content.includes('CODE_UNIT_STARTED')) {
+        const codeUnitMatch = content.match(/CODE_UNIT_STARTED\|(?:\[EXTERNAL\]\|)?([^|]+)(?:\|([^|]+))?/)
+        if (codeUnitMatch) {
+            const [, id, name] = codeUnitMatch
+            const displayName = name || id
+            newStack.push(displayName)
+            newNestLevel = newStack.length - 1
+        }
+    } else if (content.includes('CODE_UNIT_FINISHED')) {
+        if (newStack.length > 0) {
+            newStack.pop()
+            newNestLevel = newStack.length - 1
+        }
+    }
+    // Track FLOW_START_INTERVIEW_BEGIN and FLOW_INTERVIEW_FINISHED
+    else if (content.includes('FLOW_START_INTERVIEW_BEGIN')) {
+        const flowMatch = content.match(/FLOW_START_INTERVIEW_BEGIN\|[^|]+\|([^|]+)/)
+        if (flowMatch) {
+            const [, flowName] = flowMatch
+            newStack.push(`Flow: ${flowName}`)
+            newNestLevel = newStack.length - 1
+        }
+    } else if (content.includes('FLOW_INTERVIEW_FINISHED')) {
+        if (newStack.length > 0) {
+            newStack.pop()
+            newNestLevel = newStack.length - 1
+        }
+    }
+    // Track METHOD_ENTRY and METHOD_EXIT - these should be at the same nesting level
+    else if (content.includes('METHOD_ENTRY')) {
+        const methodMatch = content.match(/METHOD_ENTRY\|\[(\d+)\]\|(.*)/)
+        if (methodMatch) {
+            const [, lineNum, methodInfo] = methodMatch
+            newStack.push(`Method: ${methodInfo}`)
+            newNestLevel = newStack.length - 1
+        }
+    } else if (content.includes('METHOD_EXIT')) {
+        // For METHOD_EXIT, use the same nest level as the current stack depth
+        // Don't pop from stack yet - that happens when we process the next line
+        newNestLevel = newStack.length - 1
+    }
+    // Track CONSTRUCTOR_ENTRY and CONSTRUCTOR_EXIT - these should be at the same nesting level
+    else if (content.includes('CONSTRUCTOR_ENTRY')) {
+        const constructorMatch = content.match(/CONSTRUCTOR_ENTRY\|\[(\d+)\]\|(.*)/)
+        if (constructorMatch) {
+            const [, lineNum, constructorInfo] = constructorMatch
+            newStack.push(`Constructor: ${constructorInfo}`)
+            newNestLevel = newStack.length - 1
+        }
+    } else if (content.includes('CONSTRUCTOR_EXIT')) {
+        // For CONSTRUCTOR_EXIT, use the same nest level as the current stack depth
+        // Don't pop from stack yet - that happens when we process the next line
+        newNestLevel = newStack.length - 1
+    }
+    // For all other lines, use the current nest level
+    else {
+        newNestLevel = newStack.length - 1
+    }
+    
+    return { newStack, newNestLevel }
+}
+
+export function formatLogLine(line: string, originalIndex: number, allLines: string[], nestLevel: number = 0): FormattedLine | null {
     const baseId = `line_${originalIndex}`
 
     const timeMatch = line.match(/(\d{2}:\d{2}:\d{2})\.(\d+)\s*\(\d+\)\|/)
@@ -72,6 +139,7 @@ export function formatLogLine(line: string, originalIndex: number, allLines: str
             time: '',
             summary: line,
             type: 'STANDARD',
+            nestLevel,
             originalIndex,
         }
     }
@@ -90,15 +158,16 @@ export function formatLogLine(line: string, originalIndex: number, allLines: str
             const { formatted, isJson, preview } = tryFormatJson(message)
 
             if (isJson) {
-                return {
-                    id: baseId,
-                    time,
-                    summary: `${time} | DEBUG [${lineNum}] | {${preview}}`,
-                    details: formatted,
-                    type: 'DEBUG',
-                    isCollapsible: true,
-                    originalIndex,
-                }
+            return {
+                id: baseId,
+                time,
+                summary: `${time} | DEBUG [${lineNum}] | {${preview}}`,
+                details: formatted,
+                type: 'DEBUG',
+                isCollapsible: true,
+                nestLevel,
+                originalIndex,
+            }
             }
 
             if (message.length > 200) {
@@ -119,6 +188,7 @@ export function formatLogLine(line: string, originalIndex: number, allLines: str
                 summary: `${time} | DEBUG [${lineNum}] | ${message}`,
                 type: 'DEBUG',
                 isCollapsible: false,
+                nestLevel,
                 originalIndex,
             }
         }
@@ -131,41 +201,27 @@ export function formatLogLine(line: string, originalIndex: number, allLines: str
         }
 
         const isStart = cleanLine.includes('CODE_UNIT_STARTED')
-        let triggerName, eventType
-
-        // Debug log to see what we're trying to match
-        console.log('Attempting to match CODE_UNIT line:', cleanLine)
-
-        if (isStart) {
-            // Updated trigger pattern to be more precise
-            const startMatch = cleanLine.match(/CODE_UNIT_STARTED\|[^|]+\|([^|]+?)(?= on).*?trigger event (\w+)/)
-            console.log('startMatch', startMatch)
-            if (startMatch) {
-                console.log('Matched START:', startMatch)
-                const [, trigger, event] = startMatch
-                triggerName = trigger
-                eventType = event
-            }
-        } else {
-            const finishMatch = cleanLine.match(
-                /CODE_UNIT_FINISHED\|([^|]+?)(?= on \w+ trigger event ).*?trigger event ([^|]+)/,
-            )
-            if (finishMatch) {
-                const [, trigger, event] = finishMatch
-                triggerName = trigger
-                eventType = event
-            }
-        }
-
-        if (triggerName && eventType) {
+        
+        // More flexible pattern to match any CODE_UNIT line
+        const codeUnitMatch = cleanLine.match(/CODE_UNIT_(STARTED|FINISHED)\|(?:\[EXTERNAL\]\|)?([^|]+)(?:\|([^|]+))?/)
+        
+        if (codeUnitMatch) {
+            const [, eventType, id, name] = codeUnitMatch
+            const displayName = name || id
+            
+            console.log('CODE_UNIT matched:', { eventType, id, name, displayName, isStart })
+            
             return {
                 id: baseId,
                 time,
-                summary: `${time} | ${isStart ? 'TRIGGER START' : 'TRIGGER FINISH'} | ${triggerName} | ${eventType}`,
+                summary: `${time} | ${isStart ? 'CODE UNIT START' : 'CODE UNIT FINISH'} | ${displayName}`,
                 type: 'CODE_UNIT',
                 isCollapsible: false,
+                nestLevel,
                 originalIndex,
             }
+        } else {
+            console.log('CODE_UNIT line did not match pattern:', cleanLine)
         }
     } else if (cleanLine.includes('FLOW_')) {
         // Handle Flow start/finish lines
@@ -180,6 +236,7 @@ export function formatLogLine(line: string, originalIndex: number, allLines: str
                 summary: `${time} | ${isStart ? 'FLOW START' : 'FLOW FINISH'} | ${flowName}`,
                 type: 'FLOW',
                 isCollapsible: false,
+                nestLevel,
                 originalIndex,
             }
         }
@@ -247,6 +304,7 @@ export function formatLogLine(line: string, originalIndex: number, allLines: str
                 details: fullFormula,
                 type: 'VALIDATION',
                 isCollapsible: false,
+                nestLevel,
                 originalIndex,
             }
         }
@@ -264,6 +322,261 @@ export function formatLogLine(line: string, originalIndex: number, allLines: str
     // Skip CODE_UNIT lines for validation rules
     if (cleanLine.includes('CODE_UNIT_') && cleanLine.includes('Validation:')) {
         return null
+    }
+
+    // Handle CALLOUT events
+    if (cleanLine.includes('CALLOUT_')) {
+        const isCalloutBegin = cleanLine.includes('CALLOUT_REQUEST')
+        const isCalloutEnd = cleanLine.includes('CALLOUT_RESPONSE')
+        
+        if (isCalloutBegin) {
+            const calloutMatch = cleanLine.match(/CALLOUT_REQUEST\|\[(\d+)\]\|(.*)/)
+            if (calloutMatch) {
+                const [_, lineNum, endpoint] = calloutMatch
+                return {
+                    id: baseId,
+                    time,
+                    summary: `${time} | CALLOUT REQUEST | [${lineNum}] | ${endpoint}`,
+                    type: 'CALLOUT',
+                    isCollapsible: false,
+                    originalIndex,
+                }
+            }
+        } else if (isCalloutEnd) {
+            const calloutMatch = cleanLine.match(/CALLOUT_RESPONSE\|\[(\d+)\]\|(.*)/)
+            if (calloutMatch) {
+                const [_, lineNum, response] = calloutMatch
+                return {
+                    id: baseId,
+                    time,
+                    summary: `${time} | CALLOUT RESPONSE | [${lineNum}] | ${response}`,
+                    type: 'CALLOUT',
+                    isCollapsible: false,
+                    originalIndex,
+                }
+            }
+        }
+    }
+
+    // Handle Visualforce Page events
+    if (cleanLine.includes('VF_')) {
+        const isPageBegin = cleanLine.includes('VF_PAGE_MESSAGE')
+        const isPageEnd = cleanLine.includes('VF_APEX_CALL_END')
+        
+        if (isPageBegin) {
+            const vfMatch = cleanLine.match(/VF_PAGE_MESSAGE\|(.*)/)
+            if (vfMatch) {
+                const [_, message] = vfMatch
+                return {
+                    id: baseId,
+                    time,
+                    summary: `${time} | VF PAGE | ${message}`,
+                    type: 'VF_PAGE',
+                    isCollapsible: false,
+                    originalIndex,
+                }
+            }
+        } else if (isPageEnd) {
+            const vfMatch = cleanLine.match(/VF_APEX_CALL_END\|(.*)/)
+            if (vfMatch) {
+                const [_, details] = vfMatch
+                return {
+                    id: baseId,
+                    time,
+                    summary: `${time} | VF APEX CALL END | ${details}`,
+                    type: 'VF_PAGE',
+                    isCollapsible: false,
+                    originalIndex,
+                }
+            }
+        }
+    }
+
+    // Handle METHOD_ENTRY and METHOD_EXIT events
+    if (cleanLine.includes('METHOD_ENTRY') || cleanLine.includes('METHOD_EXIT')) {
+        const isEntry = cleanLine.includes('METHOD_ENTRY')
+        const methodMatch = cleanLine.match(/METHOD_(ENTRY|EXIT)\|\[(\d+)\]\|(.*)/)
+        
+        if (methodMatch) {
+            const [_, entryExit, lineNum, methodInfo] = methodMatch
+            return {
+                id: baseId,
+                time,
+                summary: `${time} | METHOD ${entryExit} | [${lineNum}] | ${methodInfo}`,
+                type: isEntry ? 'METHOD_ENTRY' : 'METHOD_EXIT',
+                isCollapsible: false,
+                nestLevel,
+                originalIndex,
+            }
+        }
+    }
+
+    // Handle CONSTRUCTOR_ENTRY and CONSTRUCTOR_EXIT events
+    if (cleanLine.includes('CONSTRUCTOR_ENTRY') || cleanLine.includes('CONSTRUCTOR_EXIT')) {
+        const isEntry = cleanLine.includes('CONSTRUCTOR_ENTRY')
+        const constructorMatch = cleanLine.match(/CONSTRUCTOR_(ENTRY|EXIT)\|\[(\d+)\]\|(.*)/)
+        
+        if (constructorMatch) {
+            const [_, entryExit, lineNum, constructorInfo] = constructorMatch
+            return {
+                id: baseId,
+                time,
+                summary: `${time} | CONSTRUCTOR ${entryExit} | [${lineNum}] | ${constructorInfo}`,
+                type: isEntry ? 'METHOD_ENTRY' : 'METHOD_EXIT',
+                isCollapsible: false,
+                nestLevel,
+                originalIndex,
+            }
+        }
+    }
+
+    // Handle EXCEPTION_THROWN events
+    if (cleanLine.includes('EXCEPTION_THROWN')) {
+        const exceptionMatch = cleanLine.match(/EXCEPTION_THROWN\|\[(\d+)\]\|(.*)/)
+        if (exceptionMatch) {
+            const [_, lineNum, exceptionInfo] = exceptionMatch
+            return {
+                id: baseId,
+                time,
+                summary: `${time} | EXCEPTION THROWN | [${lineNum}] | ${exceptionInfo}`,
+                type: 'DEBUG',
+                isCollapsible: false,
+                nestLevel,
+                originalIndex,
+            }
+        }
+    }
+
+
+    // Handle VARIABLE_ASSIGNMENT events
+    if (cleanLine.includes('VARIABLE_ASSIGNMENT')) {
+        const varMatch = cleanLine.match(/VARIABLE_ASSIGNMENT\|\[(\d+)\]\|(.*)/)
+        if (varMatch) {
+            const [_, lineNum, varInfo] = varMatch
+            return {
+                id: baseId,
+                time,
+                summary: `${time} | VARIABLE ASSIGNMENT | [${lineNum}] | ${varInfo}`,
+                type: 'VARIABLE_ASSIGNMENT',
+                isCollapsible: false,
+                nestLevel,
+                originalIndex,
+            }
+        }
+    }
+
+    // Handle VARIABLE_SCOPE_BEGIN and VARIABLE_SCOPE_END events
+    if (cleanLine.includes('VARIABLE_SCOPE_')) {
+        const isBegin = cleanLine.includes('VARIABLE_SCOPE_BEGIN')
+        const scopeMatch = cleanLine.match(/VARIABLE_SCOPE_(BEGIN|END)\|\[(\d+)\]\|(.*)/)
+        
+        if (scopeMatch) {
+            const [_, beginEnd, lineNum, scopeInfo] = scopeMatch
+            return {
+                id: baseId,
+                time,
+                summary: `${time} | VARIABLE SCOPE ${beginEnd} | [${lineNum}] | ${scopeInfo}`,
+                type: 'DEBUG',
+                isCollapsible: false,
+                nestLevel,
+                originalIndex,
+            }
+        }
+    }
+
+    // Handle DUPLICATE_DETECTION events - these need special grouping logic
+    if (cleanLine.includes('DUPLICATE_DETECTION_')) {
+        // Skip individual duplicate detection lines as they'll be handled as a group
+        return null
+    }
+
+    // Handle FATAL_ERROR events
+    if (cleanLine.includes('FATAL_ERROR')) {
+        const fatalMatch = cleanLine.match(/FATAL_ERROR\|\[(\d+)\]\|(.*)/)
+        if (fatalMatch) {
+            const [_, lineNum, errorInfo] = fatalMatch
+            return {
+                id: baseId,
+                time,
+                summary: `${time} | FATAL ERROR | [${lineNum}] | ${errorInfo}`,
+                type: 'DEBUG',
+                isCollapsible: false,
+                nestLevel,
+                originalIndex,
+            }
+        }
+    }
+
+    // Handle SAVEPOINT events
+    if (cleanLine.includes('SAVEPOINT_')) {
+        const isSet = cleanLine.includes('SAVEPOINT_SET')
+        const savepointMatch = cleanLine.match(/SAVEPOINT_(SET|ROLLBACK)\|\[(\d+)\]\|(.*)/)
+        
+        if (savepointMatch) {
+            const [_, setRollback, lineNum, savepointInfo] = savepointMatch
+            return {
+                id: baseId,
+                time,
+                summary: `${time} | SAVEPOINT ${setRollback} | [${lineNum}] | ${savepointInfo}`,
+                type: 'DEBUG',
+                isCollapsible: false,
+                nestLevel,
+                originalIndex,
+            }
+        }
+    }
+
+    // Handle VF_PAGE_MESSAGE events
+    if (cleanLine.includes('VF_PAGE_MESSAGE')) {
+        const vfMessageMatch = cleanLine.match(/VF_PAGE_MESSAGE\|(.*)/)
+        if (vfMessageMatch) {
+            const [_, message] = vfMessageMatch
+            return {
+                id: baseId,
+                time,
+                summary: `${time} | VF PAGE MESSAGE | ${message}`,
+                type: 'VF_PAGE',
+                isCollapsible: false,
+                nestLevel,
+                originalIndex,
+            }
+        }
+    }
+
+    // Handle VF_APEX_CALL_START and VF_APEX_CALL_END events
+    if (cleanLine.includes('VF_APEX_CALL_')) {
+        const isStart = cleanLine.includes('VF_APEX_CALL_START')
+        const vfCallMatch = cleanLine.match(/VF_APEX_CALL_(START|END)\|(.*)/)
+        
+        if (vfCallMatch) {
+            const [_, startEnd, callInfo] = vfCallMatch
+            return {
+                id: baseId,
+                time,
+                summary: `${time} | VF APEX CALL ${startEnd} | ${callInfo}`,
+                type: 'VF_PAGE',
+                isCollapsible: false,
+                nestLevel,
+                originalIndex,
+            }
+        }
+    }
+
+    // Handle USER_INFO events
+    if (cleanLine.includes('USER_INFO')) {
+        const userInfoMatch = cleanLine.match(/USER_INFO\|([^|]+)\|([^|]+)\|([^|]+)\|([^|]+)/)
+        if (userInfoMatch) {
+            const [_, userId, email, timezone, gmtOffset] = userInfoMatch
+            return {
+                id: baseId,
+                time,
+                summary: `${time} | USER INFO | ${email} | ${timezone}`,
+                type: 'USER_INFO',
+                isCollapsible: false,
+                nestLevel,
+                originalIndex,
+            }
+        }
     }
 
     return {
@@ -311,6 +624,10 @@ export function formatLogs(lines: string[]): FormattedLine[] {
     let namespaceLimits: NamespaceLimits = {}
     let currentTime = ''
     let skipUntilIndex = -1  // Add this to track which lines to skip
+    
+    // Track execution stack for indentation
+    const executionStack: string[] = []
+    let currentNestLevel = 0
 
     // First pass: create array with original indices
     const validLines = lines
@@ -335,7 +652,12 @@ export function formatLogs(lines: string[]): FormattedLine[] {
                 content.includes('SYSTEM_MODE_EXIT') ||
                 content.includes('SYSTEM_METHOD_ENTER') ||
                 content.includes('SYSTEM_METHOD_EXIT') ||
-                content.includes('EXECUTION_STARTED')
+                content.includes('EXECUTION_STARTED') ||
+                content.includes('EXECUTION_FINISHED') ||
+                (content.includes('CODE_UNIT_FINISHED') && content.includes('DuplicateDetector')) ||
+                content.includes('HEAP_ALLOCATE') ||
+                content.includes('STATEMENT_EXECUTE') ||
+                content.includes('VARIABLE_SCOPE_BEGIN')
             ) {
                 return false
             }
@@ -359,22 +681,101 @@ export function formatLogs(lines: string[]): FormattedLine[] {
                 if (nextLine.includes('VALIDATION_PASS') || 
                     nextLine.includes('VALIDATION_FAIL') ||
                     nextLine.includes('CODE_UNIT_FINISHED')) {
-                    skipUntilIndex = validLines[j].originalIndex
+                    // Don't skip the CODE_UNIT_FINISHED line itself, just mark it as the end
+                    if (nextLine.includes('CODE_UNIT_FINISHED')) {
+                        skipUntilIndex = validLines[j].originalIndex - 1
+                    } else {
+                        skipUntilIndex = validLines[j].originalIndex
+                    }
                     break
                 }
                 j++
             }
         }
 
+        // Handle duplicate detection events as a group
+        if (content.includes('DUPLICATE_DETECTION_BEGIN')) {
+            let duplicateRuleInfo = null
+            let duplicateCount = 0
+            let j = i + 1
+            
+            // Look for the rule invocation line and match details
+            while (j < validLines.length && j < i + 10) { // Look ahead max 10 lines
+                const nextLine = validLines[j].content
+                
+                if (nextLine.includes('DUPLICATE_DETECTION_RULE_INVOCATION')) {
+                    const ruleMatch = nextLine.match(/DUPLICATE_DETECTION_RULE_INVOCATION\|DuplicateRuleId:([^|]+)\|DuplicateRuleName:([^|]+)\|DmlType:([^|]*)/)
+                    if (ruleMatch) {
+                        const [_, ruleId, ruleName, dmlType] = ruleMatch
+                        duplicateRuleInfo = { ruleId, ruleName, dmlType: dmlType || 'UNKNOWN' }
+                    }
+                } else if (nextLine.includes('DUPLICATE_DETECTION_MATCH_INVOCATION_SUMMARY')) {
+                    const summaryMatch = nextLine.match(/DUPLICATE_DETECTION_MATCH_INVOCATION_SUMMARY\|EntityType:([^|]+)\|NumRecordsToBeSaved:(\d+)\|NumRecordsToBeSavedWithDuplicates:(\d+)\|NumDuplicateRecordsFound:(\d+)/)
+                    if (summaryMatch) {
+                        const [_, entityType, recordsToBeSaved, recordsWithDuplicates, duplicateRecordsFound] = summaryMatch
+                        duplicateCount = parseInt(duplicateRecordsFound) || 0
+                    }
+                } else if (nextLine.includes('DUPLICATE_DETECTION_END')) {
+                    skipUntilIndex = validLines[j].originalIndex
+                    break
+                }
+                j++
+            }
+            
+            // Create a single formatted line for the duplicate detection
+            if (duplicateRuleInfo) {
+                const timeMatch = content.match(/(\d{2}:\d{2}:\d{2})/)
+                const time = timeMatch ? timeMatch[1] : ''
+                
+                let summary = `${time} | DUPLICATE RULE | Id: ${duplicateRuleInfo.ruleId} | Name: ${duplicateRuleInfo.ruleName} | Type: ${duplicateRuleInfo.dmlType}`
+                if (duplicateCount > 0) {
+                    summary += ` | # Duplicates: ${duplicateCount}`
+                }
+                
+                // Calculate nest level for duplicate detection
+                const { newStack, newNestLevel } = calculateNestLevel(content, executionStack, currentNestLevel)
+                executionStack.length = 0
+                executionStack.push(...newStack)
+                currentNestLevel = newNestLevel
+                
+                formattedLines.push({
+                    id: `line_${originalIndex}`,
+                    time,
+                    summary,
+                    type: 'DUPLICATE_DETECTION',
+                    isCollapsible: false,
+                    nestLevel: currentNestLevel,
+                    originalIndex,
+                })
+            }
+            continue
+        }
+
         // Handle regular lines when not collecting limits
         if (!collectingLimits && 
             !content.includes('CUMULATIVE_LIMIT_USAGE') && 
-            !content.includes('SOQL_EXECUTE_BEGIN') &&
-            !content.includes('CODE_UNIT_STARTED')
+            !content.includes('SOQL_EXECUTE_BEGIN')
         ) {
-            const formattedLine = formatLogLine(content, originalIndex, lines)
+            // Calculate nest level for this line
+            const { newStack, newNestLevel } = calculateNestLevel(content, executionStack, currentNestLevel)
+            
+            // Update the execution stack
+            executionStack.length = 0
+            executionStack.push(...newStack)
+            currentNestLevel = newNestLevel
+            
+            const formattedLine = formatLogLine(content, originalIndex, lines, currentNestLevel)
             if (formattedLine) {
                 formattedLines.push(formattedLine)
+            }
+            
+            // After processing the line, handle stack cleanup for exit events
+            if (content.includes('METHOD_EXIT') || content.includes('CONSTRUCTOR_EXIT') || 
+                content.includes('CODE_UNIT_FINISHED') || content.includes('FLOW_INTERVIEW_FINISHED')) {
+                if (executionStack.length > 0) {
+                    executionStack.pop()
+                    currentNestLevel = executionStack.length - 1
+                }
             }
         }
 
@@ -412,7 +813,13 @@ export function formatLogs(lines: string[]): FormattedLine[] {
                 }
             }
 
-            const formattedLine = formatLogLine(content, originalIndex, lines)
+            // Calculate nest level for SOQL line
+            const { newStack, newNestLevel } = calculateNestLevel(content, executionStack, currentNestLevel)
+            executionStack.length = 0
+            executionStack.push(...newStack)
+            currentNestLevel = newNestLevel
+            
+            const formattedLine = formatLogLine(content, originalIndex, lines, currentNestLevel)
             if (!formattedLine) continue
 
             const sqlQuery = restOfQuery.replace(/\|Aggregations:\d+\|/, '').trim()
@@ -422,6 +829,7 @@ export function formatLogs(lines: string[]): FormattedLine[] {
                 summary: `${formattedLine.time} | SOQL [${lineNumber}] | ${boldSqlKeywords(sqlQuery)}${aggregations}${rowCount}`,
                 type: 'SOQL',
                 isCollapsible: false,
+                nestLevel: currentNestLevel,
                 originalIndex,
             })
             continue
@@ -466,22 +874,22 @@ export function formatLogs(lines: string[]): FormattedLine[] {
                 const metrics = []
                 metrics.push(`Limits (${namespace})`)
 
-                // Always show SOQL metrics
-                if (limitData['Number of SOQL queries']?.used > 0) {
+                // Always show SOQL metrics if they exist
+                if (limitData['Number of SOQL queries']) {
                     metrics.push(
-                        `🔍 SOQL: ${limitData['Number of SOQL queries'].used}/${limitData['Number of SOQL queries'].total} Queries, ${limitData['Number of query rows'].used}/${limitData['Number of query rows'].total} Rows`,
+                        `🔍 SOQL: ${limitData['Number of SOQL queries'].used}/${limitData['Number of SOQL queries'].total} Queries, ${limitData['Number of query rows']?.used || 0}/${limitData['Number of query rows']?.total || 0} Rows`,
                     )
                 }
 
                 // Always show DML metrics if they exist
-                if (limitData['Number of DML statements']?.used > 0) {
+                if (limitData['Number of DML statements']) {
                     metrics.push(
-                        `🔶 DML: ${limitData['Number of DML statements'].used}/${limitData['Number of DML statements'].total} Statements, ${limitData['Number of DML rows'].used}/${limitData['Number of DML rows'].total} Rows`,
+                        `🔶 DML: ${limitData['Number of DML statements'].used}/${limitData['Number of DML statements'].total} Statements, ${limitData['Number of DML rows']?.used || 0}/${limitData['Number of DML rows']?.total || 0} Rows`,
                     )
                 }
 
                 // Always show CPU/Heap metrics if they exist
-                if (limitData['Maximum CPU time']?.used > 0) {
+                if (limitData['Maximum CPU time']) {
                     const heapUsedKB = Math.round(limitData['Maximum heap size']?.used / 1024) || 0
                     const heapTotalKB = Math.round(limitData['Maximum heap size']?.total / 1024) || 0
                     metrics.push(
@@ -489,17 +897,32 @@ export function formatLogs(lines: string[]): FormattedLine[] {
                     )
                 }
 
-                if (metrics.length > 1) {
-                    formattedLines.push({
-                        id: `line_${originalIndex}`,
-                        time: currentTime,
-                        summary: metrics.join(' | '),
-                        type: 'LIMITS',
-                        isCollapsible: false,
-                        originalIndex,
-                    })
+                // Always add limits line if we have any data
+                if (metrics.length > 0) {
+                formattedLines.push({
+                    id: `line_${originalIndex}`,
+                    time: currentTime,
+                    summary: metrics.join(' | '),
+                    type: 'LIMITS',
+                    isCollapsible: false,
+                    nestLevel: 0, // Limits lines should not be indented
+                    originalIndex,
+                })
                 }
             })
+
+            // If no namespaces were processed, add a default limits line
+            if (Object.keys(namespaceLimits).length === 0) {
+                formattedLines.push({
+                    id: `line_${originalIndex}`,
+                    time: currentTime,
+                    summary: `${currentTime} | Limits (default) | No limit data available`,
+                    type: 'LIMITS',
+                    isCollapsible: false,
+                    nestLevel: 0, // Limits lines should not be indented
+                    originalIndex,
+                })
+            }
 
             collectingLimits = false
             namespaceLimits = {}

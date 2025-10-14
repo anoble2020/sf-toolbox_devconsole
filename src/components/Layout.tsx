@@ -91,13 +91,13 @@ export default function Layout({ children }: LayoutProps) {
     }, [pathname, searchParams, router])
 
     const menuItems = [
-        { name: 'Dashboard', path: '/dashboard', icon: Home },
-        { name: 'Logs', path: '/logs', icon: Scroll },
-        { name: 'Trace Flags', path: '/trace-flags', icon: Flag },
-        { name: 'Query', path: '/query', icon: Search },
-        { name: 'Execute', path: '/execute', icon: Play },
-        { name: 'Tests', path: '/tests', icon: FlaskConical },
-        { name: 'Explore', path: '/explore', icon: Telescope },
+        { name: 'Dashboard', path: '/devconsole/dashboard', icon: Home },
+        { name: 'Logs', path: '/devconsole/logs', icon: Scroll },
+        { name: 'Trace Flags', path: '/devconsole/trace-flags', icon: Flag },
+        { name: 'Query', path: '/devconsole/query', icon: Search },
+        { name: 'Execute', path: '/devconsole/execute', icon: Play },
+        { name: 'Tests', path: '/devconsole/tests', icon: FlaskConical },
+        { name: 'Explore', path: '/devconsole/explore', icon: Telescope },
     ]
 
     return (
@@ -106,13 +106,13 @@ export default function Layout({ children }: LayoutProps) {
             <aside className="w-64 fixed inset-y-0 left-0 flex flex-col bg-background border-r border-border z-50">
                 {/* Logo section */}
                 <div className="h-16 flex flex-col justify-center px-6 border-b border-border">
-                    <div className="flex items-center mt-2">
+                    <Link href="/" className="flex items-center mt-2 hover:opacity-80 transition-opacity">
                         <img src="/icon_128_purp.png" alt="apex toolbox" className="w-8 h-8 mb-6 mr-2" />
                         <span className="text-xl font-semibold">
                             sf toolbox
-                            <div className="text-[10px] text-gray-400 dark:text-gray-500 -mt-1 ml-10 ">v0.0.1</div>
+                            <div className="text-[10px] text-gray-400 dark:text-gray-500 -mt-1 ml-0">dev console v0.0.1</div>
                         </span>
-                    </div>
+                    </Link>
                 </div>
 
                 {/* Navigation */}
