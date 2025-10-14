@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Input } from '@/components/ui/input'
-import { Search, LineChart, MousePointerClick, Loader2, Filter, Database, Code, Bug, Workflow, Scale, Globe, FileText, ArrowRight, ArrowLeft, Shield, User, Hash } from 'lucide-react'
+import { Search, LineChart, MousePointerClick, Loader2, Filter, Database, Code, Bug, Workflow, Scale, Globe, FileText, ArrowRight, ArrowLeft, Shield, User, Hash, TextQuote } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
@@ -21,7 +21,7 @@ interface CollapsibleLine {
     time: string
     summary: string
     details?: string
-    type: 'SOQL' | 'JSON' | 'STANDARD' | 'LIMITS' | 'CODE_UNIT' | 'FLOW' | 'DEBUG' | 'DML' | 'VALIDATION' | 'CALLOUT' | 'VF_PAGE' | 'METHOD_ENTRY' | 'METHOD_EXIT' | 'DUPLICATE_DETECTION' | 'USER_INFO' | 'VARIABLE_ASSIGNMENT'
+    type: 'SOQL' | 'JSON' | 'STANDARD' | 'LIMITS' | 'CODE_UNIT' | 'FLOW' | 'DEBUG' | 'DML' | 'VALIDATION' | 'CALLOUT' | 'VF_PAGE' | 'METHOD_ENTRY' | 'METHOD_EXIT' | 'CONSTRUCTOR_ENTRY' | 'CONSTRUCTOR_EXIT' | 'DUPLICATE_DETECTION' | 'USER_INFO' | 'VARIABLE_ASSIGNMENT'
     isCollapsible?: boolean
     nestLevel?: number
     isSelected?: boolean
@@ -73,6 +73,7 @@ export function LogViewer({ logs = [], isLoading, onCloseLog, tabStates, setTabS
                         searchQuery: '',
                         showTimeline: false,
                         showReplay: false,
+                        showIndented: false,
                         selectedLine: null,
                         expandedLines: new Set(),
                         selectedLineContent: {
@@ -270,7 +271,7 @@ export function LogViewer({ logs = [], isLoading, onCloseLog, tabStates, setTabS
         onCloseLog?.(logId)
     }
 
-    const renderLine = (line: CollapsibleLine) => {
+    const renderLine = (line: CollapsibleLine, index: number, allLines: CollapsibleLine[]) => {
         const isSelected = currentTabState.selectedLineContent?.id === `line_${line.originalIndex}`
 
         const baseClasses = `
@@ -279,13 +280,22 @@ export function LogViewer({ logs = [], isLoading, onCloseLog, tabStates, setTabS
             ${isSelected ? 'bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800' : 'hover:bg-gray-50 dark:hover:bg-gray-800'}
         `
 
+        // Calculate indentation and connecting lines when showIndented is true and not a LIMITS line
+        const shouldShowIndent = currentTabState.showIndented && line.type !== 'LIMITS' && line.nestLevel !== undefined
+        const indentLevel = shouldShowIndent ? (line.nestLevel || 0) : 0
+        const indentPadding = shouldShowIndent ? `${indentLevel * 40}px` : '0px'
+
+        // Clean indentation without connecting lines
+
         if (!currentTabState.prettyMode || !line.isCollapsible) {
             return (
                 <div
                     className={baseClasses}
                     onClick={() => line.type !== 'LIMITS' && handleLineClick(line)}
                 >
-                    <div className="px-2">{renderContent(line)}</div>
+                    <div className="px-2" style={{ paddingLeft: `calc(8px + ${indentPadding})` }}>
+                        {renderContent(line)}
+                    </div>
                 </div>
             )
         }
@@ -297,7 +307,9 @@ export function LogViewer({ logs = [], isLoading, onCloseLog, tabStates, setTabS
                 className={baseClasses}
                 onClick={() => line.type !== 'LIMITS' && handleLineClick(line)}
             >
-                <div className="flex items-center gap-2 px-2">{renderContent(line)}</div>
+                <div className="flex items-center gap-2 px-2" style={{ paddingLeft: `calc(8px + ${indentPadding})` }}>
+                    {renderContent(line)}
+                </div>
                 {isExpanded && line.details && (
                     <div className="pl-8 py-2 bg-gray-50 dark:bg-gray-800 font-mono text-sm w-full whitespace-pre">{line.details}</div>
                 )}
@@ -349,7 +361,7 @@ export function LogViewer({ logs = [], isLoading, onCloseLog, tabStates, setTabS
                         </div>
 
                         {/* Right side with controls */}
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
                             <div className="flex items-center space-x-2">
                                 <Switch
                                     id="pretty-mode"
@@ -362,7 +374,7 @@ export function LogViewer({ logs = [], isLoading, onCloseLog, tabStates, setTabS
                                 {currentTabState.prettyMode && (
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0" aria-label="Filter Log" title="Filter Log">
                                                 <Filter className="h-3 w-3" />
                                             </Button>
                                         </DropdownMenuTrigger>
@@ -434,6 +446,11 @@ export function LogViewer({ logs = [], isLoading, onCloseLog, tabStates, setTabS
                                     </DropdownMenu>
                                 )}
                             </div>
+                            {currentTabState.prettyMode && (
+                                <Button variant="ghost" size="sm" aria-label="Show/Hide Indent" title="Show/Hide Indent" className="h-6 w-6 p-0 mr-2" onClick={() => updateTabState({ showIndented: !currentTabState.showIndented })}>
+                                    <TextQuote className="w-2 h-2" />
+                                </Button>
+                            )}
                             <div className="flex items-center space-x-2">
                                 <Switch
                                     id="debug-mode"
@@ -514,7 +531,9 @@ export function LogViewer({ logs = [], isLoading, onCloseLog, tabStates, setTabS
 
                         <div className="flex-1 overflow-auto font-mono text-sm" ref={logContentRef}>
                             {filteredLines[log.id]?.map((line, index) => (
-                                <div key={index} data-line={line.originalIndex}>{renderLine(line)}</div>
+                                <div key={index} data-line={line.originalIndex}>
+                                    {renderLine(line, index, filteredLines[log.id] || [])}
+                                </div>
                             ))}
                         </div>
                     </TabsContent>

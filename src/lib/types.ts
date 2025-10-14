@@ -36,6 +36,7 @@ export interface TabState {
     searchQuery: string
     showTimeline: boolean
     showReplay: boolean
+    showIndented: boolean
     selectedLine: number | null
     expandedLines: Set<string>
     selectedLineContent: {

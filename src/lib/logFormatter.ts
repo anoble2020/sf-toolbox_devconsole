@@ -62,7 +62,74 @@ function tryFormatJson(str: string): {
     }
 }
 
-export function formatLogLine(line: string, originalIndex: number, allLines: string[]): FormattedLine | null {
+function calculateNestLevel(content: string, executionStack: string[], currentNestLevel: number): { newStack: string[], newNestLevel: number } {
+    let newStack = [...executionStack]
+    let newNestLevel = currentNestLevel
+    
+    // Track CODE_UNIT_STARTED and CODE_UNIT_FINISHED for nesting
+    if (content.includes('CODE_UNIT_STARTED')) {
+        const codeUnitMatch = content.match(/CODE_UNIT_STARTED\|(?:\[EXTERNAL\]\|)?([^|]+)(?:\|([^|]+))?/)
+        if (codeUnitMatch) {
+            const [, id, name] = codeUnitMatch
+            const displayName = name || id
+            newStack.push(displayName)
+            newNestLevel = newStack.length - 1
+        }
+    } else if (content.includes('CODE_UNIT_FINISHED')) {
+        if (newStack.length > 0) {
+            newStack.pop()
+            newNestLevel = newStack.length - 1
+        }
+    }
+    // Track FLOW_START_INTERVIEW_BEGIN and FLOW_INTERVIEW_FINISHED
+    else if (content.includes('FLOW_START_INTERVIEW_BEGIN')) {
+        const flowMatch = content.match(/FLOW_START_INTERVIEW_BEGIN\|[^|]+\|([^|]+)/)
+        if (flowMatch) {
+            const [, flowName] = flowMatch
+            newStack.push(`Flow: ${flowName}`)
+            newNestLevel = newStack.length - 1
+        }
+    } else if (content.includes('FLOW_INTERVIEW_FINISHED')) {
+        if (newStack.length > 0) {
+            newStack.pop()
+            newNestLevel = newStack.length - 1
+        }
+    }
+    // Track METHOD_ENTRY and METHOD_EXIT - these should be at the same nesting level
+    else if (content.includes('METHOD_ENTRY')) {
+        const methodMatch = content.match(/METHOD_ENTRY\|\[(\d+)\]\|(.*)/)
+        if (methodMatch) {
+            const [, lineNum, methodInfo] = methodMatch
+            newStack.push(`Method: ${methodInfo}`)
+            newNestLevel = newStack.length - 1
+        }
+    } else if (content.includes('METHOD_EXIT')) {
+        // For METHOD_EXIT, use the same nest level as the current stack depth
+        // Don't pop from stack yet - that happens when we process the next line
+        newNestLevel = newStack.length - 1
+    }
+    // Track CONSTRUCTOR_ENTRY and CONSTRUCTOR_EXIT - these should be at the same nesting level
+    else if (content.includes('CONSTRUCTOR_ENTRY')) {
+        const constructorMatch = content.match(/CONSTRUCTOR_ENTRY\|\[(\d+)\]\|(.*)/)
+        if (constructorMatch) {
+            const [, lineNum, constructorInfo] = constructorMatch
+            newStack.push(`Constructor: ${constructorInfo}`)
+            newNestLevel = newStack.length - 1
+        }
+    } else if (content.includes('CONSTRUCTOR_EXIT')) {
+        // For CONSTRUCTOR_EXIT, use the same nest level as the current stack depth
+        // Don't pop from stack yet - that happens when we process the next line
+        newNestLevel = newStack.length - 1
+    }
+    // For all other lines, use the current nest level
+    else {
+        newNestLevel = newStack.length - 1
+    }
+    
+    return { newStack, newNestLevel }
+}
+
+export function formatLogLine(line: string, originalIndex: number, allLines: string[], nestLevel: number = 0): FormattedLine | null {
     const baseId = `line_${originalIndex}`
 
     const timeMatch = line.match(/(\d{2}:\d{2}:\d{2})\.(\d+)\s*\(\d+\)\|/)
@@ -72,6 +139,7 @@ export function formatLogLine(line: string, originalIndex: number, allLines: str
             time: '',
             summary: line,
             type: 'STANDARD',
+            nestLevel,
             originalIndex,
         }
     }
@@ -90,15 +158,16 @@ export function formatLogLine(line: string, originalIndex: number, allLines: str
             const { formatted, isJson, preview } = tryFormatJson(message)
 
             if (isJson) {
-                return {
-                    id: baseId,
-                    time,
-                    summary: `${time} | DEBUG [${lineNum}] | {${preview}}`,
-                    details: formatted,
-                    type: 'DEBUG',
-                    isCollapsible: true,
-                    originalIndex,
-                }
+            return {
+                id: baseId,
+                time,
+                summary: `${time} | DEBUG [${lineNum}] | {${preview}}`,
+                details: formatted,
+                type: 'DEBUG',
+                isCollapsible: true,
+                nestLevel,
+                originalIndex,
+            }
             }
 
             if (message.length > 200) {
@@ -119,6 +188,7 @@ export function formatLogLine(line: string, originalIndex: number, allLines: str
                 summary: `${time} | DEBUG [${lineNum}] | ${message}`,
                 type: 'DEBUG',
                 isCollapsible: false,
+                nestLevel,
                 originalIndex,
             }
         }
@@ -147,6 +217,7 @@ export function formatLogLine(line: string, originalIndex: number, allLines: str
                 summary: `${time} | ${isStart ? 'CODE UNIT START' : 'CODE UNIT FINISH'} | ${displayName}`,
                 type: 'CODE_UNIT',
                 isCollapsible: false,
+                nestLevel,
                 originalIndex,
             }
         } else {
@@ -165,6 +236,7 @@ export function formatLogLine(line: string, originalIndex: number, allLines: str
                 summary: `${time} | ${isStart ? 'FLOW START' : 'FLOW FINISH'} | ${flowName}`,
                 type: 'FLOW',
                 isCollapsible: false,
+                nestLevel,
                 originalIndex,
             }
         }
@@ -232,6 +304,7 @@ export function formatLogLine(line: string, originalIndex: number, allLines: str
                 details: fullFormula,
                 type: 'VALIDATION',
                 isCollapsible: false,
+                nestLevel,
                 originalIndex,
             }
         }
@@ -332,6 +405,7 @@ export function formatLogLine(line: string, originalIndex: number, allLines: str
                 summary: `${time} | METHOD ${entryExit} | [${lineNum}] | ${methodInfo}`,
                 type: isEntry ? 'METHOD_ENTRY' : 'METHOD_EXIT',
                 isCollapsible: false,
+                nestLevel,
                 originalIndex,
             }
         }
@@ -350,6 +424,7 @@ export function formatLogLine(line: string, originalIndex: number, allLines: str
                 summary: `${time} | CONSTRUCTOR ${entryExit} | [${lineNum}] | ${constructorInfo}`,
                 type: isEntry ? 'METHOD_ENTRY' : 'METHOD_EXIT',
                 isCollapsible: false,
+                nestLevel,
                 originalIndex,
             }
         }
@@ -366,6 +441,7 @@ export function formatLogLine(line: string, originalIndex: number, allLines: str
                 summary: `${time} | EXCEPTION THROWN | [${lineNum}] | ${exceptionInfo}`,
                 type: 'DEBUG',
                 isCollapsible: false,
+                nestLevel,
                 originalIndex,
             }
         }
@@ -383,6 +459,7 @@ export function formatLogLine(line: string, originalIndex: number, allLines: str
                 summary: `${time} | VARIABLE ASSIGNMENT | [${lineNum}] | ${varInfo}`,
                 type: 'VARIABLE_ASSIGNMENT',
                 isCollapsible: false,
+                nestLevel,
                 originalIndex,
             }
         }
@@ -401,6 +478,7 @@ export function formatLogLine(line: string, originalIndex: number, allLines: str
                 summary: `${time} | VARIABLE SCOPE ${beginEnd} | [${lineNum}] | ${scopeInfo}`,
                 type: 'DEBUG',
                 isCollapsible: false,
+                nestLevel,
                 originalIndex,
             }
         }
@@ -423,6 +501,7 @@ export function formatLogLine(line: string, originalIndex: number, allLines: str
                 summary: `${time} | FATAL ERROR | [${lineNum}] | ${errorInfo}`,
                 type: 'DEBUG',
                 isCollapsible: false,
+                nestLevel,
                 originalIndex,
             }
         }
@@ -441,6 +520,7 @@ export function formatLogLine(line: string, originalIndex: number, allLines: str
                 summary: `${time} | SAVEPOINT ${setRollback} | [${lineNum}] | ${savepointInfo}`,
                 type: 'DEBUG',
                 isCollapsible: false,
+                nestLevel,
                 originalIndex,
             }
         }
@@ -457,6 +537,7 @@ export function formatLogLine(line: string, originalIndex: number, allLines: str
                 summary: `${time} | VF PAGE MESSAGE | ${message}`,
                 type: 'VF_PAGE',
                 isCollapsible: false,
+                nestLevel,
                 originalIndex,
             }
         }
@@ -475,6 +556,7 @@ export function formatLogLine(line: string, originalIndex: number, allLines: str
                 summary: `${time} | VF APEX CALL ${startEnd} | ${callInfo}`,
                 type: 'VF_PAGE',
                 isCollapsible: false,
+                nestLevel,
                 originalIndex,
             }
         }
@@ -491,6 +573,7 @@ export function formatLogLine(line: string, originalIndex: number, allLines: str
                 summary: `${time} | USER INFO | ${email} | ${timezone}`,
                 type: 'USER_INFO',
                 isCollapsible: false,
+                nestLevel,
                 originalIndex,
             }
         }
@@ -541,6 +624,10 @@ export function formatLogs(lines: string[]): FormattedLine[] {
     let namespaceLimits: NamespaceLimits = {}
     let currentTime = ''
     let skipUntilIndex = -1  // Add this to track which lines to skip
+    
+    // Track execution stack for indentation
+    const executionStack: string[] = []
+    let currentNestLevel = 0
 
     // First pass: create array with original indices
     const validLines = lines
@@ -645,12 +732,19 @@ export function formatLogs(lines: string[]): FormattedLine[] {
                     summary += ` | # Duplicates: ${duplicateCount}`
                 }
                 
+                // Calculate nest level for duplicate detection
+                const { newStack, newNestLevel } = calculateNestLevel(content, executionStack, currentNestLevel)
+                executionStack.length = 0
+                executionStack.push(...newStack)
+                currentNestLevel = newNestLevel
+                
                 formattedLines.push({
                     id: `line_${originalIndex}`,
                     time,
                     summary,
                     type: 'DUPLICATE_DETECTION',
                     isCollapsible: false,
+                    nestLevel: currentNestLevel,
                     originalIndex,
                 })
             }
@@ -662,9 +756,26 @@ export function formatLogs(lines: string[]): FormattedLine[] {
             !content.includes('CUMULATIVE_LIMIT_USAGE') && 
             !content.includes('SOQL_EXECUTE_BEGIN')
         ) {
-            const formattedLine = formatLogLine(content, originalIndex, lines)
+            // Calculate nest level for this line
+            const { newStack, newNestLevel } = calculateNestLevel(content, executionStack, currentNestLevel)
+            
+            // Update the execution stack
+            executionStack.length = 0
+            executionStack.push(...newStack)
+            currentNestLevel = newNestLevel
+            
+            const formattedLine = formatLogLine(content, originalIndex, lines, currentNestLevel)
             if (formattedLine) {
                 formattedLines.push(formattedLine)
+            }
+            
+            // After processing the line, handle stack cleanup for exit events
+            if (content.includes('METHOD_EXIT') || content.includes('CONSTRUCTOR_EXIT') || 
+                content.includes('CODE_UNIT_FINISHED') || content.includes('FLOW_INTERVIEW_FINISHED')) {
+                if (executionStack.length > 0) {
+                    executionStack.pop()
+                    currentNestLevel = executionStack.length - 1
+                }
             }
         }
 
@@ -702,7 +813,13 @@ export function formatLogs(lines: string[]): FormattedLine[] {
                 }
             }
 
-            const formattedLine = formatLogLine(content, originalIndex, lines)
+            // Calculate nest level for SOQL line
+            const { newStack, newNestLevel } = calculateNestLevel(content, executionStack, currentNestLevel)
+            executionStack.length = 0
+            executionStack.push(...newStack)
+            currentNestLevel = newNestLevel
+            
+            const formattedLine = formatLogLine(content, originalIndex, lines, currentNestLevel)
             if (!formattedLine) continue
 
             const sqlQuery = restOfQuery.replace(/\|Aggregations:\d+\|/, '').trim()
@@ -712,6 +829,7 @@ export function formatLogs(lines: string[]): FormattedLine[] {
                 summary: `${formattedLine.time} | SOQL [${lineNumber}] | ${boldSqlKeywords(sqlQuery)}${aggregations}${rowCount}`,
                 type: 'SOQL',
                 isCollapsible: false,
+                nestLevel: currentNestLevel,
                 originalIndex,
             })
             continue
@@ -781,14 +899,15 @@ export function formatLogs(lines: string[]): FormattedLine[] {
 
                 // Always add limits line if we have any data
                 if (metrics.length > 0) {
-                    formattedLines.push({
-                        id: `line_${originalIndex}`,
-                        time: currentTime,
-                        summary: metrics.join(' | '),
-                        type: 'LIMITS',
-                        isCollapsible: false,
-                        originalIndex,
-                    })
+                formattedLines.push({
+                    id: `line_${originalIndex}`,
+                    time: currentTime,
+                    summary: metrics.join(' | '),
+                    type: 'LIMITS',
+                    isCollapsible: false,
+                    nestLevel: 0, // Limits lines should not be indented
+                    originalIndex,
+                })
                 }
             })
 
@@ -800,6 +919,7 @@ export function formatLogs(lines: string[]): FormattedLine[] {
                     summary: `${currentTime} | Limits (default) | No limit data available`,
                     type: 'LIMITS',
                     isCollapsible: false,
+                    nestLevel: 0, // Limits lines should not be indented
                     originalIndex,
                 })
             }
