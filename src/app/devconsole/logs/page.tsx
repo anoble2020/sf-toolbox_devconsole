@@ -4,11 +4,13 @@ import { useEffect, useState, useCallback, useRef } from "react"
 import { LogsTable } from "@/components/LogsTable"
 import { LogViewer } from "@/components/LogViewer"
 import { queryLogs, getLogBody } from "@/lib/salesforce"
-import { Loader2, MousePointerClick } from "lucide-react"
+import { Loader2, MousePointerClick, ChevronDown, ChevronUp, Disc } from "lucide-react"
 import { storage } from "@/lib/storage"
 import { toast } from "sonner"
 import { TabState } from "@/lib/types"
 import { Button } from "@/components/ui/button"
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
+import { ImperativePanelHandle } from "react-resizable-panels"
 
 interface Log {
   id: string
@@ -49,12 +51,19 @@ export default function LogsPage() {
   const [logs, setLogs] = useState<Log[]>([])
   const [selectedLogs, setSelectedLogs] = useState<LogTab[]>([])
   const [loading, setLoading] = useState(true)
+  const [tableLoading, setTableLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [userInfo, setUserInfo] = useState<any>(null)
   const [currentUserOnly, setCurrentUserOnly] = useState(true)
   const [isLoadingLog, setIsLoadingLog] = useState(false)
   const [tabStates, setTabStates] = useState<Record<string, TabState>>({})
   const [activeTab, setActiveTab] = useState('')
+  const [isTableCollapsed, setIsTableCollapsed] = useState(false)
+  const [isLiveTailing, setIsLiveTailing] = useState(false)
+  const [countdown, setCountdown] = useState(5)
+  const tablePanelRef = useRef<ImperativePanelHandle>(null)
+  const liveTailingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const formatDuration = (ms?: number): string => {
     if (!ms) return 'N/A'
@@ -76,9 +85,13 @@ export default function LogsPage() {
     return `${minutes}m ${remainingSeconds}s`
   }
 
-  const fetchLogs = async () => {
+  const fetchLogs = async (isInitialLoad = false) => {
     try {
-      setLoading(true)
+      if (isInitialLoad) {
+        setLoading(true)
+      } else {
+        setTableLoading(true)
+      }
       setError(null)
       
       console.log('Fetching logs...')
@@ -141,8 +154,16 @@ export default function LogsPage() {
       })
       setError(errorMessage)
     } finally {
-      setLoading(false)
+      if (isInitialLoad) {
+        setLoading(false)
+      } else {
+        setTableLoading(false)
+      }
     }
+  }
+
+  const refreshLogs = () => {
+    fetchLogs(false) // Not initial load, so use table loading
   }
 
   const handleSelectLog = async (log: Log) => {
@@ -171,7 +192,8 @@ export default function LogsPage() {
             id: '',
             pretty: null,
             raw: null
-          }
+          },
+          enabledLineTypes: new Set()
         }
       }))
       setActiveTab(log.id)
@@ -200,6 +222,53 @@ export default function LogsPage() {
     }
   }
 
+  const handleToggleTableCollapse = () => {
+    setIsTableCollapsed(!isTableCollapsed)
+  }
+
+  const startLiveTailing = () => {
+    setIsLiveTailing(true)
+    setCountdown(5)
+    
+    // Start the countdown timer
+    countdownIntervalRef.current = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          return 5 // Reset to 5 for next cycle
+        }
+        return prev - 1
+      })
+    }, 1000)
+    
+    // Start the auto-refresh timer
+    liveTailingIntervalRef.current = setInterval(() => {
+      refreshLogs()
+    }, 5000)
+  }
+
+  const stopLiveTailing = () => {
+    setIsLiveTailing(false)
+    setCountdown(5)
+    
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current)
+      countdownIntervalRef.current = null
+    }
+    
+    if (liveTailingIntervalRef.current) {
+      clearInterval(liveTailingIntervalRef.current)
+      liveTailingIntervalRef.current = null
+    }
+  }
+
+  const handleToggleLiveTailing = () => {
+    if (isLiveTailing) {
+      stopLiveTailing()
+    } else {
+      startLiveTailing()
+    }
+  }
+
   useEffect(() => {
     const currentDomain = storage.getCurrentDomain() as string
     const storedUserInfo = storage.getFromDomain(currentDomain, 'user_info')
@@ -208,7 +277,19 @@ export default function LogsPage() {
   }, [])
 
   useEffect(() => {
-    fetchLogs()
+    fetchLogs(true) // Initial load
+  }, [])
+
+  // Cleanup intervals on unmount
+  useEffect(() => {
+    return () => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current)
+      }
+      if (liveTailingIntervalRef.current) {
+        clearInterval(liveTailingIntervalRef.current)
+      }
+    }
   }, [])
 
   if (loading) {
@@ -224,7 +305,7 @@ export default function LogsPage() {
       <div className="p-4">
         <div className="text-red-500">Error: {error}</div>
         <button 
-          onClick={fetchLogs}
+          onClick={() => fetchLogs(true)}
           className="mt-4 px-4 py-2 bg-blue-500 dark:bg-background text-white rounded hover:bg-blue-600"
         >
           Retry
@@ -259,23 +340,76 @@ export default function LogsPage() {
   console.log('Filtered logs count:', filteredLogs.length);
 
   return (
-    <div className="relative h-full">
-      <LogViewer 
-        logs={selectedLogs}
-        isLoading={isLoadingLog}
-        onCloseLog={handleCloseLog}
-        tabStates={tabStates}
-        setTabStates={setTabStates}
-        activeLogId={activeTab}
-      />
-      <LogsTable 
-        logs={filteredLogs}
-        isLoadingLog={isLoadingLog} 
-        onSelectLog={handleSelectLog}
-        onRefresh={fetchLogs}
-        currentUserOnly={currentUserOnly}
-        onToggleCurrentUser={setCurrentUserOnly}
-      />
+    <div className="h-full">
+      {isTableCollapsed ? (
+        /* Collapsed state - LogViewer takes full height, collapse button at bottom */
+        <div className="h-full flex flex-col">
+          <div className="flex-1 overflow-auto">
+            <LogViewer 
+              logs={selectedLogs}
+              isLoading={isLoadingLog}
+              onCloseLog={handleCloseLog}
+              tabStates={tabStates}
+              setTabStates={setTabStates}
+              activeLogId={activeTab}
+            />
+          </div>
+          {/* Collapse button at bottom when collapsed */}
+          <div className="flex justify-end p-2 bg-background border-t border-gray-200 dark:border-gray-700">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleToggleTableCollapse}
+            >
+              <ChevronUp className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      ) : (
+        /* Expanded state - use ResizablePanelGroup */
+        <ResizablePanelGroup direction="vertical" className="h-full">
+          {/* Main content area - LogViewer */}
+          <ResizablePanel defaultSize={75} minSize={30} className="min-h-0">
+            <div className="h-full overflow-auto">
+              <LogViewer 
+                logs={selectedLogs}
+                isLoading={isLoadingLog}
+                onCloseLog={handleCloseLog}
+                tabStates={tabStates}
+                setTabStates={setTabStates}
+                activeLogId={activeTab}
+              />
+            </div>
+          </ResizablePanel>
+          
+          {/* Resize handle positioned at the very top of the table */}
+          <ResizableHandle withHandle className="bg-gray-200 dark:bg-gray-700" />
+          
+          {/* Logs table panel */}
+          <ResizablePanel 
+            ref={tablePanelRef}
+            defaultSize={25} 
+            minSize={15} 
+            maxSize={60}
+            className="min-h-0"
+          >
+            <LogsTable 
+              logs={filteredLogs}
+              isLoadingLog={isLoadingLog} 
+              onSelectLog={handleSelectLog}
+              onRefresh={refreshLogs}
+              currentUserOnly={currentUserOnly}
+              onToggleCurrentUser={setCurrentUserOnly}
+              isCollapsed={isTableCollapsed}
+              onToggleCollapse={handleToggleTableCollapse}
+              isLiveTailing={isLiveTailing}
+              onToggleLiveTailing={handleToggleLiveTailing}
+              countdown={countdown}
+              tableLoading={tableLoading}
+            />
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      )}
     </div>
   )
 } 

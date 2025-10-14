@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Button } from '@/components/ui/button'
-import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Disc, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { RefreshCw } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
@@ -41,6 +40,12 @@ interface LogsTableProps {
     currentUserOnly: boolean
     onToggleCurrentUser: (checked: boolean) => void
     isLoadingLog?: boolean
+    isCollapsed: boolean
+    onToggleCollapse: () => void
+    isLiveTailing: boolean
+    onToggleLiveTailing: () => void
+    countdown: number
+    tableLoading: boolean
 }
 
 export function LogsTable({
@@ -50,45 +55,28 @@ export function LogsTable({
     currentUserOnly,
     onToggleCurrentUser,
     isLoadingLog,
+    isCollapsed,
+    onToggleCollapse,
+    isLiveTailing,
+    onToggleLiveTailing,
+    countdown,
+    tableLoading,
 }: LogsTableProps) {
-    const [isCollapsed, setIsCollapsed] = useState(false)
     const [currentPage, setCurrentPage] = useState(1)
     const [sortConfig, setSortConfig] = useState<SortConfig>({
         key: 'time',
         direction: 'desc',
     })
     const logsPerPage = 5
-    const [tableHeight, setTableHeight] = useState(300)
-    const [isResizing, setIsResizing] = useState(false)
-    const resizeRef = useRef<HTMLDivElement>(null)
 
-    useEffect(() => {
-        const handleMouseMove = (e: MouseEvent) => {
-            if (!isResizing) return
-
-            const windowHeight = window.innerHeight
-            const mouseY = e.clientY
-            const newHeight = windowHeight - mouseY
-
-            // Set minimum and maximum heights
-            const height = Math.min(Math.max(newHeight, 200), windowHeight - 100)
-            setTableHeight(height)
-        }
-
-        const handleMouseUp = () => {
-            setIsResizing(false)
-        }
-
-        if (isResizing) {
-            window.addEventListener('mousemove', handleMouseMove)
-            window.addEventListener('mouseup', handleMouseUp)
-        }
-
-        return () => {
-            window.removeEventListener('mousemove', handleMouseMove)
-            window.removeEventListener('mouseup', handleMouseUp)
-        }
-    }, [isResizing])
+    // Animated ellipsis component
+    const AnimatedEllipsis = () => (
+        <span className="inline-block">
+            <span className="animate-pulse">.</span>
+            <span className="animate-pulse" style={{ animationDelay: '0.2s' }}>.</span>
+            <span className="animate-pulse" style={{ animationDelay: '0.4s' }}>.</span>
+        </span>
+    )
 
     const handleSort = (key: keyof Log) => {
         setSortConfig((current) => ({
@@ -161,128 +149,131 @@ export function LogsTable({
     ]
 
     return (
-        <div
-            className={cn(
-                'fixed bottom-0 left-64 right-0 bg-background transition-all duration-300 z-40',
-                isCollapsed ? 'h-8 border-t-0' : 'border-t border-gray-200',
-            )}
-            style={{ height: isCollapsed ? '32px' : `${tableHeight}px` }}
-        >
-            {/* Resize handle */}
-            {!isCollapsed && (
-                <div
-                    ref={resizeRef}
-                    className="absolute -top-1 left-0 right-0 h-2 cursor-ns-resize hover:bg-gray-200"
-                    onMouseDown={() => setIsResizing(true)}
-                />
-            )}
-
-            {/* Table controls */}
-            <div className="absolute -top-8 right-4 flex gap-2">
+        <div className="bg-background border-t border-gray-200 dark:border-gray-700 h-full flex flex-col">
+            {/* Table controls at the top */}
+            <div className="flex justify-end gap-2 p-2 border-b border-gray-200 dark:border-gray-700">
                 <Button
                     variant="outline"
                     size="sm"
-                    onClick={onRefresh}
-                    className="rounded-t-lg rounded-b-none dark:border-white"
+                    onClick={onToggleCollapse}
                 >
-                    <RefreshCw className="h-4 w-4" />
-                </Button>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsCollapsed(!isCollapsed)}
-                    className="rounded-t-lg rounded-b-none dark:border-white"
-                >
-                    {isCollapsed ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    <ChevronDown className="h-4 w-4" />
                 </Button>
             </div>
 
             {/* Table content */}
-            <div className={cn('h-full flex flex-col', isCollapsed ? 'hidden' : 'block')}>
-                <div className="flex-1 overflow-auto">
-                    <table className="w-full text-[11px]">
-                        <TableHeader>
-                            <TableRow>
-                                {headers.map((header) => (
-                                    <TableHead
-                                        key={`header-${header.key}`}
-                                        className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 text-[11px] whitespace-nowrap"
-                                        onClick={() => handleSort(header.key)}
-                                    >
-                                        {header.label}
-                                        {sortConfig.key === header.key && (
-                                            <span className="ml-1">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
-                                        )}
-                                    </TableHead>
-                                ))}
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {paginatedLogs
-                                .filter((log) => log && log.id)
-                                .map((log) => (
-                                    <TableRow
-                                        key={log.id}
-                                        className={cn(
-                                            'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600',
-                                            isLoadingLog && 'opacity-50 pointer-events-none',
-                                        )}
-                                        onClick={() => !isLoadingLog && onSelectLog(log)}
-                                    >
-                                        <TableCell className="whitespace-nowrap">{log.user}</TableCell>
-                                        <TableCell className="whitespace-nowrap">{log.operation}</TableCell>
-                                        <TableCell className="whitespace-nowrap">{formatDateTime(log.time)}</TableCell>
-                                        <TableCell className="whitespace-nowrap">
-                                            {formatDuration(log.durationMilliseconds)}
-                                        </TableCell>
-                                        <TableCell className="whitespace-nowrap truncate max-w-[200px]">
-                                            {log.status}
-                                        </TableCell>
-                                        <TableCell className="whitespace-nowrap">{log.size}</TableCell>
-                                    </TableRow>
-                                ))}
-                        </TableBody>
-                    </table>
-                </div>
-
-                {/* Pagination */}
-                <div className="flex justify-between items-center p-2 border-t bg-background">
-                    <div className="flex items-center gap-4">
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                            Page {currentPage} of {Math.ceil(logs.length / logsPerPage)}
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <Switch
-                                id="current-user-logs"
-                                checked={currentUserOnly}
-                                onCheckedChange={onToggleCurrentUser}
-                                className="dark:bg-white"
-                            />
-                            <Label htmlFor="current-user-logs" className="text-xs text-gray-600 dark:text-gray-400">
-                                My Logs Only
-                            </Label>
-                        </div>
+            <div className="flex-1 overflow-auto relative">
+                {tableLoading && (
+                    <div className="absolute inset-0 bg-white/50 dark:bg-gray-900/50 flex items-center justify-center z-10">
+                        <Loader2 className="w-6 h-6 animate-spin text-gray-500" />
                     </div>
-                    <div className="flex gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                        >
-                            <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCurrentPage((p) => Math.min(Math.ceil(logs.length / logsPerPage), p + 1))}
-                            disabled={currentPage === Math.ceil(logs.length / logsPerPage)}
-                        >
-                            <ChevronRight className="h-4 w-4" />
-                        </Button>
-                    </div>
-                </div>
+                )}
+                <table className="w-full text-[11px]">
+                    <TableHeader>
+                        <TableRow>
+                            {headers.map((header) => (
+                                <TableHead
+                                    key={`header-${header.key}`}
+                                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 text-[11px] whitespace-nowrap"
+                                    onClick={() => handleSort(header.key)}
+                                >
+                                    {header.label}
+                                    {sortConfig.key === header.key && (
+                                        <span className="ml-1">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                                    )}
+                                </TableHead>
+                            ))}
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {paginatedLogs
+                            .filter((log) => log && log.id)
+                            .map((log) => (
+                                <TableRow
+                                    key={log.id}
+                                    className={cn(
+                                        'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600',
+                                        isLoadingLog && 'opacity-50 pointer-events-none',
+                                    )}
+                                    onClick={() => !isLoadingLog && onSelectLog(log)}
+                                >
+                                    <TableCell className="whitespace-nowrap">{log.user}</TableCell>
+                                    <TableCell className="whitespace-nowrap">{log.operation}</TableCell>
+                                    <TableCell className="whitespace-nowrap">{formatDateTime(log.time)}</TableCell>
+                                    <TableCell className="whitespace-nowrap">
+                                        {formatDuration(log.durationMilliseconds)}
+                                    </TableCell>
+                                    <TableCell className="whitespace-nowrap truncate max-w-[200px]">
+                                        {log.status}
+                                    </TableCell>
+                                    <TableCell className="whitespace-nowrap">{log.size}</TableCell>
+                                </TableRow>
+                            ))}
+                    </TableBody>
+                </table>
             </div>
+
+                    {/* Pagination */}
+                    <div className="flex justify-between items-center p-2 border-t bg-background">
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center space-x-2">
+                                <Switch
+                                    id="current-user-logs"
+                                    checked={currentUserOnly}
+                                    onCheckedChange={onToggleCurrentUser}
+                                    className="dark:bg-white"
+                                />
+                                <Label htmlFor="current-user-logs" className="text-xs text-gray-600 dark:text-gray-400">
+                                    My Logs Only
+                                </Label>
+                                <Button
+                                    variant="outline"
+                                    aria-label="Refresh"
+                                    size="sm"
+                                    onClick={onRefresh}
+                                    >
+                                    <RefreshCw className="h-4 w-4" />
+                                    Refresh
+                                </Button>
+                                <Button
+                                    variant={isLiveTailing ? "default" : "outline"}
+                                    aria-label="Live Tailing"
+                                    size="sm"
+                                    onClick={onToggleLiveTailing}
+                                    className={isLiveTailing ? "bg-red-500 hover:bg-red-600 text-white" : ""}
+                                    >
+                                    <Disc className={cn("h-4 w-4", isLiveTailing && "animate-pulse text-red-200")} />
+                                    Live Tailing
+                                </Button>
+                                {isLiveTailing && (
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                        Refreshing logs in {countdown} <AnimatedEllipsis />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                                Page {currentPage} of {Math.ceil(logs.length / logsPerPage)}
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage((p) => Math.min(Math.ceil(logs.length / logsPerPage), p + 1))}
+                                disabled={currentPage === Math.ceil(logs.length / logsPerPage)}
+                            >
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
         </div>
     )
 }
