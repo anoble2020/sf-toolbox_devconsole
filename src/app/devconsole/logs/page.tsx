@@ -193,7 +193,7 @@ export default function LogsPage() {
             pretty: null,
             raw: null
           },
-          enabledLineTypes: new Set()
+          enabledLineTypes: new Set(['SOQL', 'DML', 'DEBUG', 'LIMITS', 'CODE_UNIT', 'FLOW', 'VALIDATION', 'CALLOUT', 'VF_PAGE', 'METHOD_ENTRY', 'METHOD_EXIT', 'DUPLICATE_DETECTION', 'USER_INFO', 'VARIABLE_ASSIGNMENT', 'JSON', 'STANDARD'])
         }
       }))
       setActiveTab(log.id)
