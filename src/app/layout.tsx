@@ -35,7 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <ThemeProvider
                     attribute="class"
                     defaultTheme="light"
-                    enableSystem={false}
+                    enableSystem
                     disableTransitionOnChange
                 >
                     <div className="min-h-screen bg-background">
