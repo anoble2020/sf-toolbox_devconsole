@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ExternalLink, Copy } from 'lucide-react'
 import { refreshAccessToken } from '@/lib/auth'
@@ -11,6 +12,8 @@ import { toast } from 'sonner'
 import { useApiLimits } from '@/lib/store'
 import { updateApiLimitsFromHeaders } from '@/lib/salesforce'
 import { storage } from '@/lib/storage'
+import { SOQLQueryBuilder } from '@/components/SOQLQueryBuilder'
+import { QueryPageLoader } from '@/components/QueryPageLoader'
 
 interface QueryResult {
     records: Record<string, any>[]
@@ -34,6 +37,7 @@ export default function QueryPage() {
         direction: 'asc',
     })
     const [filterValue, setFilterValue] = useState('')
+    const [autoCompleteEnabled, setAutoCompleteEnabled] = useState(false)
     const store = useApiLimits()
 
     const addIdToQuery = (query: string): string => {
@@ -223,114 +227,129 @@ export default function QueryPage() {
     }
 
     return (
-        <div className="p-4">
-            <div className="space-y-4">
-                <Textarea
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Enter your SOQL query..."
-                    className="min-h-[100px] font-mono"
-                />
+        <QueryPageLoader>
+            <div className="p-4">
+                <div className="space-y-4">
+                    <SOQLQueryBuilder
+                        value={query}
+                        onChange={setQuery}
+                        placeholder="Enter your SOQL query..."
+                        className="min-h-[100px]"
+                        autoCompleteEnabled={autoCompleteEnabled}
+                    />
 
-                <Button onClick={executeQuery} disabled={loading}>
-                    Execute Query
-                </Button>
-
-                {error && <div className="text-red-500 text-sm">{error}</div>}
-
-                {results && (
-                    <div className="flex flex-col flex-1 mt-4">
-                        <div className="flex justify-between items-center mb-2">
-                            <div className="text-sm text-gray-500">
-                                {results.totalSize} record{results.totalSize !== 1 ? 's' : ''} returned
-                            </div>
-                            <div className="w-64">
-                                <Input
-                                    placeholder="Filter results..."
-                                    value={filterValue}
-                                    onChange={(e) => setFilterValue(e.target.value)}
-                                    className="h-8"
-                                />
-                            </div>
+                    <div className="flex items-center gap-4">
+                        <Button onClick={executeQuery} disabled={loading}>
+                            Execute Query
+                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Switch
+                                id="auto-complete-toggle"
+                                checked={autoCompleteEnabled}
+                                onCheckedChange={setAutoCompleteEnabled}
+                            />
+                            <Label htmlFor="auto-complete-toggle" className="cursor-pointer">
+                                Auto Complete (Beta)
+                            </Label>
                         </div>
+                    </div>
 
-                        <div className="border rounded-md">
-                            {/* Fixed header */}
-                            <div className="sticky top-0 bg-white z-20 border-b">
-                                <div className="w-full table table-fixed">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                {getColumns().map((column) => (
-                                                    <TableHead
-                                                        key={column}
-                                                        className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 min-w-[80px] bg-background w-[200px]"
-                                                        onClick={() => handleSort(column)}
-                                                    >
-                                                        <div className="flex items-center gap-2">
-                                                            {column}
-                                                            {sortConfig.column === column && (
-                                                                <span className="text-xs">
-                                                                    {sortConfig.direction === 'asc' ? '↑' : '↓'}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </TableHead>
-                                                ))}
-                                                <TableHead className="min-w-[80px] bg-background w-[80px]"></TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                    </Table>
+                    {error && <div className="text-red-500 text-sm">{error}</div>}
+
+                    {results && (
+                        <div className="flex flex-col flex-1 mt-4">
+                            <div className="flex justify-between items-center mb-2">
+                                <div className="text-sm text-gray-500">
+                                    {results.totalSize} record{results.totalSize !== 1 ? 's' : ''} returned
+                                </div>
+                                <div className="w-64">
+                                    <Input
+                                        placeholder="Filter results..."
+                                        value={filterValue}
+                                        onChange={(e) => setFilterValue(e.target.value)}
+                                        className="h-8"
+                                    />
                                 </div>
                             </div>
 
-                            {/* Scrollable body */}
-                            <div className="max-h-[600px] overflow-auto">
-                                <Table>
-                                    <TableBody>
-                                        {filterRecords(sortRecords(results.records)).map((record) => (
-                                            <TableRow key={record.Id}>
-                                                {getColumns().map((column) => (
-                                                    <TableCell
-                                                        key={`${record.Id}-${column}`}
-                                                        className="min-w-[80px] w-[200px]"
-                                                    >
-                                                        <div className="flex items-center gap-2">
-                                                            {getNestedValue(record, column)}
-                                                            {column === 'Id' && (
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation()
-                                                                        copyToClipboard(record.Id)
-                                                                    }}
-                                                                    className="h-6 w-6 p-0 hover:bg-gray-100"
-                                                                >
-                                                                    <Copy className="h-4 w-4" />
-                                                                </Button>
-                                                            )}
-                                                        </div>
+                            <div className="border rounded-md">
+                                {/* Fixed header */}
+                                <div className="sticky top-0 bg-white z-20 border-b">
+                                    <div className="w-full table table-fixed">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    {getColumns().map((column) => (
+                                                        <TableHead
+                                                            key={column}
+                                                            className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 min-w-[80px] bg-background w-[200px]"
+                                                            onClick={() => handleSort(column)}
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                {column}
+                                                                {sortConfig.column === column && (
+                                                                    <span className="text-xs">
+                                                                        {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </TableHead>
+                                                    ))}
+                                                    <TableHead className="min-w-[80px] bg-background w-[80px]"></TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                        </Table>
+                                    </div>
+                                </div>
+
+                                {/* Scrollable body */}
+                                <div className="max-h-[600px] overflow-auto">
+                                    <Table>
+                                        <TableBody>
+                                            {filterRecords(sortRecords(results.records)).map((record) => (
+                                                <TableRow key={record.Id}>
+                                                    {getColumns().map((column) => (
+                                                        <TableCell
+                                                            key={`${record.Id}-${column}`}
+                                                            className="min-w-[80px] w-[200px]"
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                {getNestedValue(record, column)}
+                                                                {column === 'Id' && (
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation()
+                                                                            copyToClipboard(record.Id)
+                                                                        }}
+                                                                        className="h-6 w-6 p-0 hover:bg-gray-100"
+                                                                    >
+                                                                        <Copy className="h-4 w-4" />
+                                                                    </Button>
+                                                                )}
+                                                            </div>
+                                                        </TableCell>
+                                                    ))}
+                                                    <TableCell className="min-w-[80px] w-[80px]">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => openInSalesforce(record.Id)}
+                                                        >
+                                                            <ExternalLink className="h-4 w-4" />
+                                                        </Button>
                                                     </TableCell>
-                                                ))}
-                                                <TableCell className="min-w-[80px] w-[80px]">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => openInSalesforce(record.Id)}
-                                                    >
-                                                        <ExternalLink className="h-4 w-4" />
-                                                    </Button>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
-        </div>
+        </QueryPageLoader>
     )
 }

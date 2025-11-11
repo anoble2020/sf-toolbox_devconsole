@@ -17,7 +17,7 @@ export function Navigation() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 max-w-screen-2xl items-center">
+      <div className=" flex h-14 items-center pr-2">
         <div className="mr-4 hidden md:flex">
           <Link href="/" className="mr-6 flex items-center space-x-2 pl-4">
             <img src="/icon_128_purp.png" alt="sf toolbox" className="w-6 h-6" />
@@ -60,11 +60,11 @@ export function Navigation() {
           </Link>
         </div>
 
-        <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
-          <div className="w-full flex-1 md:w-auto md:flex-none">
-            {/* Search or other content can go here */}
+        <div className="flex flex-1 items-center justify-end">
+          <div className="w-full flex-1 md:w-auto md:flex-none md:hidden">
+            {/* Search or other content can go here - hidden on md and up */}
           </div>
-          <nav className="flex items-center space-x-2">
+          <nav className="flex items-center space-x-2 ml-auto">
             <Link
               href="https://github.com/anoble2020/sf-toolbox"
               target="_blank"
