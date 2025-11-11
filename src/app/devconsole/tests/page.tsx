@@ -36,7 +36,13 @@ export default function TestsPage() {
     const selectedClassId = testsState.selectedClassId
     
     const setSearchQuery = (value: string) => setTestsState({ searchQuery: value })
-    const setCurrentPage = (value: number) => setTestsState({ currentPage: value })
+    const setCurrentPage = (value: number | ((prev: number) => number)) => {
+        if (typeof value === 'function') {
+            setTestsState({ currentPage: value(currentPage) })
+        } else {
+            setTestsState({ currentPage: value })
+        }
+    }
     const setTestRuns = (value: typeof testRuns | ((prev: typeof testRuns) => typeof testRuns)) => {
         if (typeof value === 'function') {
             // Read current value from store to avoid stale closure
@@ -238,7 +244,7 @@ export default function TestsPage() {
                             // Always update with completed status and available data
                             return {
                                 ...run,
-                                status: 'completed',
+                                status: 'completed' as const,
                                 results: data.results,
                                 coverage: data.coverage,
                                 jobInfo: data.jobInfo,
@@ -279,7 +285,7 @@ export default function TestsPage() {
 
                         return {
                             ...run,
-                            status: 'completed',
+                            status: 'completed' as const,
                             error: error instanceof Error ? error.message : 'An error occurred',
                         }
                     }
