@@ -37,7 +37,13 @@ export default function QueryPage() {
     
     const setQuery = (value: string) => setQueryState({ query: value })
     const setResults = (value: QueryResult | null) => setQueryState({ results: value })
-    const setSortConfig = (value: typeof sortConfig) => setQueryState({ sortConfig: value })
+    const setSortConfig = (value: typeof sortConfig | ((current: typeof sortConfig) => typeof sortConfig)) => {
+        if (typeof value === 'function') {
+            setQueryState({ sortConfig: value(sortConfig) })
+        } else {
+            setQueryState({ sortConfig: value })
+        }
+    }
     const setFilterValue = (value: string) => setQueryState({ filterValue: value })
     const setAutoCompleteEnabled = (value: boolean) => setQueryState({ autoCompleteEnabled: value })
     const setOrgDomain = (value: string) => setQueryState({ orgDomain: value })
@@ -185,7 +191,7 @@ export default function QueryPage() {
     const handleSort = (column: string) => {
         setSortConfig((current) => ({
             column,
-            direction: current.column === column && current.direction === 'asc' ? 'desc' : 'asc',
+            direction: (current.column === column && current.direction === 'asc' ? 'desc' : 'asc') as 'asc' | 'desc',
         }))
     }
 
