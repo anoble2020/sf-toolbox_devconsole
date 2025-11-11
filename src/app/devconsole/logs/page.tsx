@@ -11,19 +11,7 @@ import { TabState } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
 import { ImperativePanelHandle } from "react-resizable-panels"
-
-interface Log {
-  id: string
-  user: string
-  userId: string
-  operation: string
-  time: string
-  duration: string
-  status: string
-  size: string
-  content?: string
-  durationMilliseconds?: number
-}
+import { useDevConsoleStore, deserializeTabState, serializeTabState, type Log } from "@/lib/devconsoleStore"
 
 interface LogTab {
   id: string
@@ -48,22 +36,62 @@ interface LogTab {
 }*/
 
 export default function LogsPage() {
-  const [logs, setLogs] = useState<Log[]>([])
-  const [selectedLogs, setSelectedLogs] = useState<LogTab[]>([])
+  const { logs: logsState, setLogsState } = useDevConsoleStore()
   const [loading, setLoading] = useState(true)
   const [tableLoading, setTableLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [userInfo, setUserInfo] = useState<any>(null)
-  const [currentUserOnly, setCurrentUserOnly] = useState(true)
   const [isLoadingLog, setIsLoadingLog] = useState(false)
-  const [tabStates, setTabStates] = useState<Record<string, TabState>>({})
-  const [activeTab, setActiveTab] = useState('')
-  const [isTableCollapsed, setIsTableCollapsed] = useState(false)
-  const [isLiveTailing, setIsLiveTailing] = useState(false)
-  const [countdown, setCountdown] = useState(5)
   const tablePanelRef = useRef<ImperativePanelHandle>(null)
   const liveTailingIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  
+  const logs = logsState.logs
+  const selectedLogs = logsState.selectedLogs
+  const activeTab = logsState.activeTab
+  const isTableCollapsed = logsState.isTableCollapsed
+  const currentUserOnly = logsState.currentUserOnly
+  const isLiveTailing = logsState.isLiveTailing
+  const countdown = logsState.countdown
+  
+  const setLogs = (value: Log[] | ((prev: Log[]) => Log[])) => {
+    if (typeof value === 'function') {
+      // Read current value from store to avoid stale closure
+      const currentLogs = useDevConsoleStore.getState().logs.logs
+      const newValue = value(currentLogs)
+      setLogsState({ logs: newValue })
+    } else {
+      setLogsState({ logs: value })
+    }
+  }
+  
+  // Convert serialized tabStates to TabState with Sets
+  const tabStates: Record<string, TabState> = {}
+  Object.entries(logsState.tabStates).forEach(([key, serialized]) => {
+    tabStates[key] = deserializeTabState(serialized)
+  })
+  
+  const setSelectedLogs = (value: LogTab[] | ((prev: LogTab[]) => LogTab[])) => {
+    const newValue = typeof value === 'function' ? value(selectedLogs) : value
+    setLogsState({ selectedLogs: newValue })
+  }
+  const setTabStates = (value: Record<string, TabState> | ((prev: Record<string, TabState>) => Record<string, TabState>)) => {
+    const newValue = typeof value === 'function' ? value(tabStates) : value
+    // Serialize TabState to SerializedTabState before storing
+    const serialized: Record<string, any> = {}
+    Object.entries(newValue).forEach(([key, state]) => {
+      serialized[key] = serializeTabState(state)
+    })
+    setLogsState({ tabStates: serialized })
+  }
+  const setActiveTab = (value: string) => setLogsState({ activeTab: value })
+  const setIsTableCollapsed = (value: boolean) => setLogsState({ isTableCollapsed: value })
+  const setCurrentUserOnly = (value: boolean) => setLogsState({ currentUserOnly: value })
+  const setIsLiveTailing = (value: boolean) => setLogsState({ isLiveTailing: value })
+  const setCountdown = (value: number | ((prev: number) => number)) => {
+    const newValue = typeof value === 'function' ? value(countdown) : value
+    setLogsState({ countdown: newValue })
+  }
 
   const formatDuration = (ms?: number): string => {
     if (!ms) return 'N/A'
@@ -167,19 +195,17 @@ export default function LogsPage() {
   }
 
   const handleSelectLog = async (log: Log) => {
-    // If the log is already open, just make it active
     if (tabStates[log.id]) {
       setActiveTab(log.id)
       return
     }
 
-    // Otherwise, proceed with loading the log and initializing its state
     try {
       setIsLoadingLog(true)
       const logContent = await getLogBody(log.id)
-      setSelectedLogs(prev => [...prev, { ...log, content: logContent }])
-      setTabStates(prev => ({
-        ...prev,
+      setSelectedLogs([...selectedLogs, { ...log, content: logContent }])
+      setTabStates({
+        ...tabStates,
         [log.id]: {
           prettyMode: false,
           debugOnly: false,
@@ -196,7 +222,7 @@ export default function LogsPage() {
           },
           enabledLineTypes: new Set(['SOQL', 'DML', 'DEBUG', 'LIMITS', 'CODE_UNIT', 'FLOW', 'VALIDATION', 'CALLOUT', 'VF_PAGE', 'METHOD_ENTRY', 'METHOD_EXIT', 'DUPLICATE_DETECTION', 'USER_INFO', 'VARIABLE_ASSIGNMENT', 'JSON', 'STANDARD'])
         }
-      }))
+      })
       setActiveTab(log.id)
     } catch (error) {
       console.error('Error fetching log content:', error)
@@ -206,19 +232,15 @@ export default function LogsPage() {
   }
 
   const handleCloseLog = (logId: string) => {
-    // Remove from selectedLogs
-    setSelectedLogs(prev => prev.filter(log => log.id !== logId))
+    const newSelectedLogs = selectedLogs.filter(log => log.id !== logId)
+    setSelectedLogs(newSelectedLogs)
     
-    // Remove from tabStates
-    setTabStates(prev => {
-      const newState = { ...prev }
-      delete newState[logId]
-      return newState
-    })
+    const newTabStates = { ...tabStates }
+    delete newTabStates[logId]
+    setTabStates(newTabStates)
 
-    // If we're closing the active tab, set active tab to another open tab or empty string
     if (activeTab === logId) {
-      const remainingTabs = Object.keys(tabStates).filter(id => id !== logId)
+      const remainingTabs = Object.keys(newTabStates).filter(id => id !== logId)
       setActiveTab(remainingTabs.length > 0 ? remainingTabs[0] : '')
     }
   }
@@ -278,7 +300,23 @@ export default function LogsPage() {
   }, [])
 
   useEffect(() => {
-    fetchLogs(true) // Initial load
+    // Only fetch logs automatically on first visit
+    const currentState = useDevConsoleStore.getState().logs
+    const hasInitiallyFetched = currentState.hasInitiallyFetched
+    
+    if (!hasInitiallyFetched) {
+      fetchLogs(true).then(() => {
+        // Mark as initially fetched after first load completes
+        setLogsState({ hasInitiallyFetched: true })
+      }).catch(() => {
+        // Even if fetch fails, mark as fetched to prevent retry loops
+        setLogsState({ hasInitiallyFetched: true })
+      })
+    } else {
+      // If logs were already fetched initially, don't show loading state
+      // Logs are already in the store from the previous visit
+      setLoading(false)
+    }
   }, [])
 
   // Cleanup intervals on unmount

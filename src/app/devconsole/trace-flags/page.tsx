@@ -22,6 +22,7 @@ import { AddTraceFlagModal } from '@/components/AddTraceFlagModal'
 import { CACHE_DURATIONS } from '@/lib/constants'
 import { toast } from 'sonner'
 import { storage } from '@/lib/storage'
+import { useDevConsoleStore } from '@/lib/devconsoleStore'
 
 type SortDirection = 'asc' | 'desc'
 
@@ -31,15 +32,20 @@ type CreateTraceFlagResponse = {
 }
 
 export default function TraceFlagsPage() {
+    const { traceFlags: traceFlagsState, setTraceFlagsState } = useDevConsoleStore()
     const [traceFlags, setTraceFlags] = useState<TraceFlag[]>([])
     const [users, setUsers] = useState<SalesforceUser[]>([])
     const [debugLevels, setDebugLevels] = useState<DebugLevel[]>([])
     const [loading, setLoading] = useState(true)
     const [refreshing, setRefreshing] = useState(false)
-    const [sortField, setSortField] = useState<keyof TraceFlag>('ExpirationDate')
-    const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
     const [error, setError] = useState<string | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
+    
+    const sortField = traceFlagsState.sortField
+    const sortDirection = traceFlagsState.sortDirection
+    
+    const setSortField = (value: keyof TraceFlag) => setTraceFlagsState({ sortField: value })
+    const setSortDirection = (value: SortDirection) => setTraceFlagsState({ sortDirection: value })
 
     useEffect(() => {
         let mounted = true

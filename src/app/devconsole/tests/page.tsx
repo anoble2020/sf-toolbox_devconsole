@@ -12,6 +12,7 @@ import { CoverageSheet } from '@/components/CoverageSheet'
 import { toast } from 'sonner'
 import { CACHE_DURATIONS } from '@/lib/constants'
 import { storage } from '@/lib/storage'
+import { useDevConsoleStore } from '@/lib/devconsoleStore'
 
 interface TestClass {
     Id: string
@@ -19,28 +20,36 @@ interface TestClass {
     testMethods: string[]
 }
 
-interface TestRun {
-    classId: string
-    testRunId: string
-    status: 'running' | 'completed'
-    results?: any[]
-    coverage?: any[]
-    jobInfo?: any
-    error?: string
-}
-
 export default function TestsPage() {
+    const { tests: testsState, setTestsState } = useDevConsoleStore()
     const [testClasses, setTestClasses] = useState<TestClass[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const [selectedClass, setSelectedClass] = useState<TestClass | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [runningTests, setRunningTests] = useState<Set<string>>(new Set())
-    const [testRuns, setTestRuns] = useState<TestRun[]>([])
-    const [searchQuery, setSearchQuery] = useState('')
-    const [currentPage, setCurrentPage] = useState(1)
-    const itemsPerPage = 10
     const [isCoverageOpen, setIsCoverageOpen] = useState(false)
+    const itemsPerPage = 10
+    
+    const searchQuery = testsState.searchQuery
+    const currentPage = testsState.currentPage
+    const testRuns = testsState.testRuns
+    const selectedClassId = testsState.selectedClassId
+    
+    const setSearchQuery = (value: string) => setTestsState({ searchQuery: value })
+    const setCurrentPage = (value: number) => setTestsState({ currentPage: value })
+    const setTestRuns = (value: typeof testRuns | ((prev: typeof testRuns) => typeof testRuns)) => {
+        if (typeof value === 'function') {
+            // Read current value from store to avoid stale closure
+            const currentTestRuns = useDevConsoleStore.getState().tests.testRuns
+            const newValue = value(currentTestRuns)
+            setTestsState({ testRuns: newValue })
+        } else {
+            setTestsState({ testRuns: value })
+        }
+    }
+    
+    const selectedClass = selectedClassId ? testClasses.find(c => c.Id === selectedClassId) || null : null
+    const setSelectedClass = (value: TestClass | null) => setTestsState({ selectedClassId: value?.Id || null })
 
     const fetchTestClasses = async () => {
         try {
@@ -93,6 +102,11 @@ export default function TestsPage() {
     useEffect(() => {
         fetchTestClasses()
     }, [])
+    
+    // Debug: Log testRuns changes
+    useEffect(() => {
+        console.log('Test runs changed:', testRuns.length, testRuns)
+    }, [testRuns])
 
     const runTests = async (classId: string, methodNames: string[]) => {
         if (!classId || !methodNames.length) {
@@ -149,7 +163,17 @@ export default function TestsPage() {
                 status: 'running' as const,
             }
 
-            setTestRuns((prev) => [...prev, newRun])
+            // Use functional update to ensure we get the latest state
+            setTestRuns((prev) => {
+                // Check if this test run already exists (avoid duplicates)
+                const exists = prev.some(run => run.testRunId === newRun.testRunId)
+                if (exists) {
+                    console.log('Test run already exists, skipping add:', newRun.testRunId)
+                    return prev
+                }
+                console.log('Adding new test run:', newRun.testRunId, 'Current runs:', prev.length)
+                return [...prev, newRun]
+            })
 
             // Start polling
             pollTestResults(responseData.testRunId, authResult.instance_url, authResult.access_token)
@@ -200,8 +224,8 @@ export default function TestsPage() {
                 throw new Error(data.error)
             }
 
-            setTestRuns((prev) =>
-                prev.map((run) => {
+            setTestRuns((prev) => {
+                const updated = prev.map((run) => {
                     if (run.testRunId === testRunId) {
                         if (data.isComplete) {
                             // Remove from running tests when complete
@@ -227,8 +251,10 @@ export default function TestsPage() {
                         }
                     }
                     return run
-                }),
-            )
+                })
+                console.log('Updated test runs after poll:', updated.length, 'for testRunId:', testRunId)
+                return updated
+            })
 
             if (!data.isComplete) {
                 await new Promise((resolve) => setTimeout(resolve, 5000))

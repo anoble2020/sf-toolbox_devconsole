@@ -11,15 +11,22 @@ import { Save, X, Loader2 } from 'lucide-react'
 import { SavedBlocksDrawer } from '@/components/SavedBlocksDrawer'
 import { SavedCodeBlock } from '@/lib/types'
 import { storage } from '@/lib/storage'
+import { useDevConsoleStore } from '@/lib/devconsoleStore'
 
 function ExecuteContent() {
-    const [code, setCode] = useState('')
+    const { execute: executeState, setExecuteState } = useDevConsoleStore()
     const [isExecuting, setIsExecuting] = useState(false)
     const [isSaveModalOpen, setSaveModalOpen] = useState(false)
     const [savedBlocks, setSavedBlocks] = useState<SavedCodeBlock[]>([])
     const [activeBlock, setActiveBlock] = useState<SavedCodeBlock | null>(null)
-    const [isDrawerOpen, setIsDrawerOpen] = useState(false)
     const router = useRouter()
+    
+    const code = executeState.code
+    const isDrawerOpen = executeState.isDrawerOpen
+    const activeBlockId = executeState.activeBlockId
+    
+    const setCode = (value: string) => setExecuteState({ code: value })
+    const setIsDrawerOpen = (value: boolean) => setExecuteState({ isDrawerOpen: value })
 
     // Load saved blocks on mount
     useEffect(() => {
@@ -32,6 +39,14 @@ function ExecuteContent() {
         const savedCodeBlocks = storage.getFromDomain(currentDomain, 'saved_code_blocks')
         if (savedCodeBlocks) {
             setSavedBlocks(savedCodeBlocks)
+            // Restore active block if it exists
+            if (activeBlockId) {
+                const block = savedCodeBlocks.find(b => b.id === activeBlockId)
+                if (block) {
+                    setActiveBlock(block)
+                    setCode(block.code)
+                }
+            }
         }
     }, [])
 
@@ -79,6 +94,7 @@ function ExecuteContent() {
     const handleLoad = (block: SavedCodeBlock) => {
         setCode(block.code)
         setActiveBlock(block)
+        setExecuteState({ activeBlockId: block.id })
     }
 
     const handleDelete = (block: SavedCodeBlock) => {
@@ -97,6 +113,7 @@ function ExecuteContent() {
     const handleClose = () => {
         setActiveBlock(null)
         setCode('')
+        setExecuteState({ activeBlockId: null })
     }
 
     const executeCode = async (codeToExecute: string) => {

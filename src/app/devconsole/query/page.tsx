@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
@@ -14,6 +14,7 @@ import { updateApiLimitsFromHeaders } from '@/lib/salesforce'
 import { storage } from '@/lib/storage'
 import { SOQLQueryBuilder } from '@/components/SOQLQueryBuilder'
 import { QueryPageLoader } from '@/components/QueryPageLoader'
+import { useDevConsoleStore } from '@/lib/devconsoleStore'
 
 interface QueryResult {
     records: Record<string, any>[]
@@ -21,24 +22,25 @@ interface QueryResult {
     done: boolean
 }
 
-interface SortConfig {
-    column: string | null
-    direction: 'asc' | 'desc'
-}
-
 export default function QueryPage() {
-    const [query, setQuery] = useState('')
-    const [results, setResults] = useState<QueryResult | null>(null)
+    const { query: queryState, setQueryState } = useDevConsoleStore()
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    const [orgDomain, setOrgDomain] = useState('')
-    const [sortConfig, setSortConfig] = useState<SortConfig>({
-        column: null,
-        direction: 'asc',
-    })
-    const [filterValue, setFilterValue] = useState('')
-    const [autoCompleteEnabled, setAutoCompleteEnabled] = useState(false)
     const store = useApiLimits()
+    
+    const query = queryState.query
+    const results = queryState.results
+    const sortConfig = queryState.sortConfig
+    const filterValue = queryState.filterValue
+    const autoCompleteEnabled = queryState.autoCompleteEnabled
+    const orgDomain = queryState.orgDomain
+    
+    const setQuery = (value: string) => setQueryState({ query: value })
+    const setResults = (value: QueryResult | null) => setQueryState({ results: value })
+    const setSortConfig = (value: typeof sortConfig) => setQueryState({ sortConfig: value })
+    const setFilterValue = (value: string) => setQueryState({ filterValue: value })
+    const setAutoCompleteEnabled = (value: boolean) => setQueryState({ autoCompleteEnabled: value })
+    const setOrgDomain = (value: string) => setQueryState({ orgDomain: value })
 
     const addIdToQuery = (query: string): string => {
         const trimmedQuery = query.trim()
@@ -81,7 +83,8 @@ export default function QueryPage() {
             }
 
             const { access_token, instance_url } = await refreshAccessToken(refreshToken)
-            setOrgDomain(instance_url.replace('https://', ''))
+            const domain = instance_url.replace('https://', '')
+            setOrgDomain(domain)
 
             // Add Id field if not present
             const modifiedQuery = addIdToQuery(query)
