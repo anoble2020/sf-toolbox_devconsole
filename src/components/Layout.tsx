@@ -121,7 +121,7 @@ export default function Layout({ children }: LayoutProps) {
             {/* Fixed sidebar */}
             <aside className={cn(
                 'fixed inset-y-0 left-0 flex flex-col bg-background border-r border-border z-50 transition-all duration-200',
-                isCollapsed ? 'w-16' : 'w-64'
+                isCollapsed ? 'w-16' : 'w-48'
             )}>
                 {/* Logo section */}
                 <div className={cn(
@@ -232,12 +232,12 @@ export default function Layout({ children }: LayoutProps) {
             {/* Main content wrapper */}
             <div className={cn(
                 'flex-1 flex flex-col min-w-0 transition-all duration-200',
-                isCollapsed ? 'ml-16' : 'ml-64'
+                isCollapsed ? 'ml-16' : 'ml-48'
             )}>
                 {/* Fixed header */}
                 <header className={cn(
                     'h-16 fixed top-0 right-0 border-b border-border px-4 flex items-center justify-between bg-background transition-all duration-200',
-                    isCollapsed ? 'left-16' : 'left-64'
+                    isCollapsed ? 'left-16' : 'left-48'
                 )}>
                     <div className="flex-none">
                         <ApiLimits />

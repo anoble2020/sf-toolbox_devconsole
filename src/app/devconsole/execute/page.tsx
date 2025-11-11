@@ -36,12 +36,12 @@ function ExecuteContent() {
             return
         }
 
-        const savedCodeBlocks = storage.getFromDomain(currentDomain, 'saved_code_blocks')
+        const savedCodeBlocks = storage.getFromDomain(currentDomain, 'saved_code_blocks') as SavedCodeBlock[] | undefined
         if (savedCodeBlocks) {
             setSavedBlocks(savedCodeBlocks)
             // Restore active block if it exists
             if (activeBlockId) {
-                const block = savedCodeBlocks.find(b => b.id === activeBlockId)
+                const block = savedCodeBlocks.find((b: SavedCodeBlock) => b.id === activeBlockId)
                 if (block) {
                     setActiveBlock(block)
                     setCode(block.code)
