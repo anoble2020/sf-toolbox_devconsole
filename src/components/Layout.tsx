@@ -1,6 +1,6 @@
 'use client'
 
-import { Scroll, Flag, FlaskConical, Search, Play, Github, Coffee, Telescope, Home } from 'lucide-react'
+import { Scroll, Flag, FlaskConical, Search, Play, Github, Coffee, Telescope, Home, ChevronLeft, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useSearchParams, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -27,6 +27,8 @@ export default function Layout({ children }: LayoutProps) {
     const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
     const [mounted, setMounted] = useState(false)
     const [currentDomain, setCurrentDomain] = useState<string | null>(null)
+    const [isCollapsed, setIsCollapsed] = useState(false)
+    const [showText, setShowText] = useState(true)
 
     // Helper function to build URLs with org parameter
     const getHref = (path: string) => {
@@ -90,6 +92,20 @@ export default function Layout({ children }: LayoutProps) {
         }
     }, [pathname, searchParams, router])
 
+    // Handle text visibility during expand animation
+    useEffect(() => {
+        if (isCollapsed) {
+            // Hide text immediately when collapsing
+            setShowText(false)
+        } else {
+            // Delay showing text until after animation completes (300ms)
+            const timer = setTimeout(() => {
+                setShowText(true)
+            }, 300)
+            return () => clearTimeout(timer)
+        }
+    }, [isCollapsed])
+
     const menuItems = [
         { name: 'Dashboard', path: '/devconsole/dashboard', icon: Home },
         { name: 'Logs', path: '/devconsole/logs', icon: Scroll },
@@ -103,70 +119,126 @@ export default function Layout({ children }: LayoutProps) {
     return (
         <div className="h-screen flex">
             {/* Fixed sidebar */}
-            <aside className="w-64 fixed inset-y-0 left-0 flex flex-col bg-background border-r border-border z-50">
+            <aside className={cn(
+                'fixed inset-y-0 left-0 flex flex-col bg-background border-r border-border z-50 transition-all duration-200',
+                isCollapsed ? 'w-16' : 'w-64'
+            )}>
                 {/* Logo section */}
-                <div className="h-16 flex flex-col justify-center px-6 border-b border-border">
-                    <Link href="/" className="flex items-center mt-2 hover:opacity-80 transition-opacity">
-                        <img src="/icon_128_purp.png" alt="apex toolbox" className="w-8 h-8 mb-6 mr-2" />
-                        <span className="text-xl font-semibold">
-                            sf toolbox
-                            <div className="text-[10px] text-gray-400 dark:text-gray-500 -mt-1 ml-0">dev console v0.0.1</div>
-                        </span>
+                <div className={cn(
+                    'h-16 flex flex-col justify-center border-b border-border transition-all duration-200',
+                    isCollapsed ? 'px-2' : 'px-5'
+                )}>
+                    <Link href="/" className={cn(
+                        'flex items-center hover:opacity-80 transition-opacity',
+                        isCollapsed ? 'justify-center mt-2' : 'mt-2'
+                    )}>
+                        <img src="/icon_128_purp.png" alt="apex toolbox" className={cn(
+                            'w-8 h-8 transition-all duration-300',
+                            isCollapsed ? 'mb-0 mr-0' : 'mb-6 mr-2'
+                        )} />
+                        {!isCollapsed && (
+                            <span className={cn(
+                                'text-xl font-semibold transition-opacity duration-100',
+                                showText ? 'opacity-100' : 'opacity-0'
+                            )}>
+                                sf toolbox
+                                <div className="text-[10px] text-gray-400 dark:text-gray-500 -mt-1 ml-0">dev console v0.0.1</div>
+                            </span>
+                        )}
                     </Link>
                 </div>
 
                 {/* Navigation */}
-                <nav className="flex-1 pt-6 px-3 bg-sidebar-background">
+                <nav className={cn(
+                    'flex-1 pt-6 bg-sidebar-background transition-all duration-200',
+                    isCollapsed ? 'px-2' : 'px-3'
+                )}>
                     {menuItems.map((item) => (
                         <Link
                             key={item.path}
                             href={getHref(item.path)}
                             className={cn(
-                                'flex items-center px-3 py-1.5 rounded-md mb-1 text-sm font-weight-[400]',
+                                'flex items-center rounded-md mb-1 text-sm font-weight-[400] transition-all duration-200',
+                                isCollapsed ? 'px-2 py-1.5 justify-center' : 'px-3 py-1.5',
                                 pathname === item.path
                                     ? 'bg-[#e1e1e1] text-gray-900 dark:bg-gray-600 dark:text-gray-100'
                                     : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-gray-100',
                             )}
+                            title={isCollapsed ? item.name : undefined}
                         >
-                            <item.icon className="w-3 h-3 mr-3" />
-                            {item.name}
+                            <item.icon className={cn(
+                                'transition-all duration-200',
+                                isCollapsed ? 'w-4 h-4' : 'w-4 h-4 mr-3'
+                            )} />
+                            {!isCollapsed && (
+                                <span className={cn(
+                                    'transition-opacity duration-100',
+                                    showText ? 'opacity-100' : 'opacity-0'
+                                )}>
+                                    {item.name}
+                                </span>
+                            )}
                         </Link>
                     ))}
                 </nav>
 
                 {/* Disclaimer and links */}
-                <div className="mt-auto p-4 border-t border-border">
-                    <p className="text-[11px] text-gray-500 dark:text-gray-500 mb-4 leading-tight">
-                        These tools are not created, supported or endorsed by Salesforce.com. Use at your own risk and
-                        discretion.
-                    </p>
-                    <div className="flex flex-col gap-2">
-                        <a
-                            href="https://github.com/anoble2020/sf-toolbox"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 text-sm"
-                        >
-                            <Github className="w-4 h-4" />
-                            <span className="text-xs">View project on GitHub</span>
-                        </a>
-                        <a
-                            href="https://buymeacoffee.com/alexandernoble"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 text-sm"
-                        >
-                            <Coffee className="w-4 h-4" />
-                            <span className="text-xs">Buy me a coffee</span>
-                        </a>
+                {!isCollapsed && (
+                    <div className={cn(
+                        'mt-auto p-4 border-t border-border transition-opacity duration-160',
+                        showText ? 'opacity-100' : 'opacity-0'
+                    )}>
+                        <p className="text-[11px] text-gray-500 dark:text-gray-500 mb-4 leading-tight">
+                            These tools are not created, supported or endorsed by Salesforce.com. Use at your own risk and
+                            discretion.
+                        </p>
+                        <div className="flex flex-col gap-2">
+                            <a
+                                href="https://github.com/anoble2020/sf-toolbox"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 text-sm"
+                            >
+                                <Github className="w-4 h-4" />
+                                <span className="text-xs">View project on GitHub</span>
+                            </a>
+                            <a
+                                href="https://buymeacoffee.com/alexandernoble"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 text-sm"
+                            >
+                                <Coffee className="w-4 h-4" />
+                                <span className="text-xs">Buy me a coffee</span>
+                            </a>
+                        </div>
                     </div>
-                </div>
+                )}
+
+                {/* Collapse toggle button */}
+                <button
+                    onClick={() => setIsCollapsed(!isCollapsed)}
+                    className="absolute top-16 -right-3 w-6 h-6 rounded-full bg-background border border-border flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors z-50 shadow-sm"
+                    aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                >
+                    {isCollapsed ? (
+                        <ChevronRight className="w-4 h-4" />
+                    ) : (
+                        <ChevronLeft className="w-4 h-4" />
+                    )}
+                </button>
             </aside>
 
             {/* Main content wrapper */}
-            <div className="ml-64 flex-1 flex flex-col min-w-0">
+            <div className={cn(
+                'flex-1 flex flex-col min-w-0 transition-all duration-200',
+                isCollapsed ? 'ml-16' : 'ml-64'
+            )}>
                 {/* Fixed header */}
-                <header className="h-16 fixed top-0 right-0 left-64 border-b border-border px-4 flex items-center justify-between bg-background">
+                <header className={cn(
+                    'h-16 fixed top-0 right-0 border-b border-border px-4 flex items-center justify-between bg-background transition-all duration-200',
+                    isCollapsed ? 'left-16' : 'left-64'
+                )}>
                     <div className="flex-none">
                         <ApiLimits />
                     </div>
