@@ -235,7 +235,13 @@ export const useDevConsoleStore = create<DevConsoleState>()(
                         const serializedTabStates: Record<string, SerializedTabState> = {}
                         Object.entries(state.tabStates).forEach(([key, value]) => {
                             if (value && typeof value === 'object' && 'expandedLines' in value) {
-                                serializedTabStates[key] = serializeTabState(value as TabState)
+                                // Check if expandedLines is a Set (TabState) or array (SerializedTabState)
+                                if (value.expandedLines instanceof Set) {
+                                    serializedTabStates[key] = serializeTabState(value as unknown as TabState)
+                                } else {
+                                    // Already serialized, use as-is
+                                    serializedTabStates[key] = value as SerializedTabState
+                                }
                             } else {
                                 serializedTabStates[key] = value as SerializedTabState
                             }
