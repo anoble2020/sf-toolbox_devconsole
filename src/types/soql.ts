@@ -39,9 +39,6 @@ export interface FieldInfo {
   name: string
   label: string
   type: string
-  length?: number
-  precision?: number
-  scale?: number
   unique: boolean
   nillable: boolean
   caseSensitive: boolean
