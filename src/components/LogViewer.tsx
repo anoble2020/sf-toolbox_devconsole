@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { flushSync } from 'react-dom'
 import { Input } from '@/components/ui/input'
 import { Search, LineChart, MousePointerClick, Loader2, Filter, Database, Code, Bug, Workflow, Scale, Globe, FileText, ArrowRight, ArrowLeft, Shield, User, Hash, TextQuote } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -52,9 +53,59 @@ const renderContent = (line: CollapsibleLine) => {
     return <LogRendererDispatcher line={line} />
 }
 
+interface LogHeaderInfo {
+    apiVersion: string
+    logLevels: Array<{ area: string; level: string }>
+}
+
+const parseLogHeader = (firstLine: string): LogHeaderInfo | null => {
+    // Format: "62.0 APEX_CODE,FINEST;APEX_PROFILING,INFO;CALLOUT,INFO;..."
+    const match = firstLine.match(/^(\d+\.\d+)\s+(.+)$/)
+    if (!match) return null
+
+    const apiVersion = match[1]
+    const levelsString = match[2]
+    
+    const logLevels = levelsString.split(';').map(item => {
+        const [area, level] = item.split(',')
+        return { area: area.trim(), level: level.trim() }
+    }).filter(item => item.area && item.level)
+
+    return { apiVersion, logLevels }
+}
+
+const LogHeader = ({ headerInfo }: { headerInfo: LogHeaderInfo }) => {
+    return (
+        <div className="sticky top-0 z-10 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-4 py-3">
+            <div className="flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-2">
+                    <span className="text-gray-600 dark:text-gray-400 text-xs font-semibold">API Version:</span>
+                    <span className="text-gray-900 dark:text-gray-100 text-xs font-mono font-bold">{headerInfo.apiVersion}</span>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-gray-600 dark:text-gray-400 text-xs font-semibold">Log Levels:</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {headerInfo.logLevels.map(({ area, level }, index) => (
+                            <div key={index} className="flex items-center gap-1">
+                                <span className="text-gray-700 dark:text-gray-300 text-xs font-mono">{area}</span>
+                                <span className="text-gray-500 dark:text-gray-500 text-xs">:</span>
+                                <span className="text-gray-900 dark:text-gray-100 text-xs font-mono font-semibold">{level}</span>
+                                {index < headerInfo.logLevels.length - 1 && (
+                                    <span className="text-gray-400 dark:text-gray-600 text-xs mx-1">•</span>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
+
 export function LogViewer({ logs = [], isLoading, onCloseLog, tabStates, setTabStates, activeLogId }: LogViewerProps) {
     const [activeTab, setActiveTab] = useState<string>(activeLogId || '')
     const logContentRef = useRef<HTMLDivElement>(null)
+    const prevPrettyModeRef = useRef<Record<string, boolean>>({})
     
     // Store state for each tab in a Record
     const [filteredLines, setFilteredLines] = useState<Record<string, CollapsibleLine[]>>({})
@@ -176,6 +227,13 @@ export function LogViewer({ logs = [], isLoading, onCloseLog, tabStates, setTabS
                 const formattedLines = formatLogs(allLines)
                 let filteredFormatted = formattedLines
                 
+                // Filter out the first line if it matches the header format
+                const firstLine = allLines[0] || ''
+                const isHeaderLine = parseLogHeader(firstLine) !== null
+                if (isHeaderLine) {
+                    filteredFormatted = filteredFormatted.filter((line) => line.originalIndex !== 0)
+                }
+                
                 // Filter by enabled line types
                 const enabledTypes = state.enabledLineTypes || new Set(LINE_TYPES.map(type => type.value))
                 filteredFormatted = filteredFormatted.filter((line) => 
@@ -214,6 +272,46 @@ export function LogViewer({ logs = [], isLoading, onCloseLog, tabStates, setTabS
 
         setFilteredLines(newFilteredLines)
     }, [logs, tabStates])
+
+    // Initialize prevPrettyModeRef when tab changes
+    useEffect(() => {
+        if (prevPrettyModeRef.current[activeTab] === undefined) {
+            prevPrettyModeRef.current[activeTab] = currentTabState.prettyMode
+        }
+    }, [activeTab, currentTabState.prettyMode])
+
+    // Scroll to selected line only when toggling between Raw and Pretty mode
+    useEffect(() => {
+        const prevPrettyMode = prevPrettyModeRef.current[activeTab]
+        const currentPrettyMode = currentTabState.prettyMode
+        
+        // Only scroll if prettyMode changed and we have a selected line
+        if (prevPrettyMode !== undefined && prevPrettyMode !== currentPrettyMode && currentTabState.selectedLineContent?.id) {
+            // Extract originalIndex from the selected line ID (format: "line_123")
+            const match = currentTabState.selectedLineContent.id.match(/^line_(\d+)$/)
+            if (match) {
+                const originalIndex = parseInt(match[1], 10)
+                
+                // Wait for DOM to update after filteredLines change - longer timeout for Raw to Pretty
+                const timeoutId = setTimeout(() => {
+                    if (logContentRef.current) {
+                        const lineElement = logContentRef.current.querySelector(`[data-line="${originalIndex}"]`)
+                        if (lineElement) {
+                            lineElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                        }
+                    }
+                }, currentPrettyMode ? 200 : 100) // Longer timeout when going to Pretty mode
+
+                // Update the ref after scheduling the scroll
+                prevPrettyModeRef.current[activeTab] = currentPrettyMode
+                
+                return () => clearTimeout(timeoutId)
+            }
+        } else {
+            // Update the ref for next comparison if no scroll happened
+            prevPrettyModeRef.current[activeTab] = currentPrettyMode
+        }
+    }, [currentTabState.prettyMode, currentTabState.selectedLineContent?.id, activeTab])
 
     const toggleLine = (lineId: string) => {
         const newExpandedLines = new Set<string>(currentTabState.expandedLines)
@@ -311,19 +409,71 @@ export function LogViewer({ logs = [], isLoading, onCloseLog, tabStates, setTabS
                     {renderContent(line)}
                 </div>
                 {isExpanded && line.details && (
-                    <div className="pl-8 py-2 bg-gray-50 dark:bg-gray-800 font-mono text-sm w-full whitespace-pre">{line.details}</div>
+                    <div className="pl-8 py-2 bg-gray-50 dark:bg-gray-800 font-mono text-xs w-full whitespace-pre">{line.details}</div>
                 )}
             </div>
         )
     }
 
     const handleEventClick = (lineNumber: number) => {
-        updateTabState({ showTimeline: false })
-        // Scroll to the line in the log
-        if (logContentRef.current) {
-            const lineElement = logContentRef.current.querySelector(`[data-line="${lineNumber}"]`)
-            lineElement?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        // Find the line in filteredLines to select it
+        const log = logs.find(log => log.id === activeTab)
+        if (!log) return
+        
+        // Get the raw line content
+        const rawLine = log.content?.split('\n')?.[lineNumber] || null
+        
+        // Find the nearest visible line if the clicked line is filtered out
+        let targetLineNumber = lineNumber
+        let formattedLine = filteredLines[activeTab]?.find(line => line.originalIndex === lineNumber)
+        
+        // If line is not visible, find the nearest visible line
+        if (!formattedLine && filteredLines[activeTab] && filteredLines[activeTab].length > 0) {
+            const sortedLines = [...filteredLines[activeTab]]
+                .filter(line => line.originalIndex !== undefined)
+                .sort((a, b) => (a.originalIndex ?? 0) - (b.originalIndex ?? 0))
+            // Find the first line with originalIndex >= lineNumber
+            const nextLine = sortedLines.find(line => (line.originalIndex ?? 0) >= lineNumber)
+            if (nextLine && nextLine.originalIndex !== undefined) {
+                targetLineNumber = nextLine.originalIndex
+                formattedLine = nextLine
+            } else if (sortedLines.length > 0) {
+                // If no line after, use the last line
+                const lastLine = sortedLines[sortedLines.length - 1]
+                if (lastLine.originalIndex !== undefined) {
+                    targetLineNumber = lastLine.originalIndex
+                    formattedLine = lastLine
+                }
+            }
         }
+        
+        // Update selected line content, ensuring timeline stays closed
+        const newSelectedContent = {
+            id: `line_${targetLineNumber}`,
+            raw: log.content?.split('\n')?.[targetLineNumber] || null,
+            pretty: null as string | null,
+        }
+        
+        // If in pretty mode, set the pretty version
+        if (currentTabState.prettyMode && formattedLine) {
+            newSelectedContent.pretty = `${formattedLine.time}|${formattedLine.summary}`
+        }
+        
+        // Update state, explicitly keeping timeline closed
+        updateTabState({ 
+            selectedLineContent: newSelectedContent,
+            showTimeline: false 
+        })
+        
+        // Scroll to the line in the log
+        setTimeout(() => {
+            if (logContentRef.current) {
+                const lineElement = logContentRef.current.querySelector(`[data-line="${targetLineNumber}"]`)
+                if (lineElement) {
+                    lineElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                }
+            }
+        }, 100)
     }
 
     if (!logs || logs.length === 0) {
@@ -511,11 +661,23 @@ export function LogViewer({ logs = [], isLoading, onCloseLog, tabStates, setTabS
                         )}
 
                         {currentTabState.showTimeline && (
-                            <div className="flex-none border-b border-gray-200 dark:border-gray-800">
+                            <div className="flex-none border-b border-gray-200 dark:border-gray-800" key={`timeline-${activeTab}-${currentTabState.showTimeline}`}>
                                 <TraceViewer
+                                    key={`traceviewer-${activeTab}`}
                                     content={log.content}
-                                    onClose={() => updateTabState({ showTimeline: false })}
-                                    onEventClick={handleEventClick}
+                                    onClose={() => {
+                                        updateTabState({ showTimeline: false })
+                                    }}
+                                    onEventClick={(lineNumber) => {
+                                        // Close the modal and handle the event click
+                                        // Use flushSync to ensure the close happens immediately
+                                        flushSync(() => {
+                                            updateTabState({ showTimeline: false })
+                                        })
+                                        
+                                        // Handle the event click immediately (it will also ensure timeline stays closed)
+                                        handleEventClick(lineNumber)
+                                    }}
                                 />
                             </div>
                         )}
@@ -529,12 +691,23 @@ export function LogViewer({ logs = [], isLoading, onCloseLog, tabStates, setTabS
                             </div>
                         )}
 
-                        <div className="flex-1 overflow-auto font-mono text-sm" ref={logContentRef}>
-                            {filteredLines[log.id]?.map((line, index) => (
-                                <div key={index} data-line={line.originalIndex}>
-                                    {renderLine(line, index, filteredLines[log.id] || [])}
-                                </div>
-                            ))}
+                        <div className="flex-1 overflow-auto font-mono text-xs" ref={logContentRef}>
+                            {(() => {
+                                const state = tabStates[log.id]
+                                const firstLine = log.content?.split('\n')?.[0] || ''
+                                const headerInfo = parseLogHeader(firstLine)
+                                const showHeader = state?.prettyMode && headerInfo
+                                return (
+                                    <>
+                                        {showHeader && <LogHeader headerInfo={headerInfo} />}
+                                        {filteredLines[log.id]?.map((line, index) => (
+                                            <div key={index} data-line={line.originalIndex}>
+                                                {renderLine(line, index, filteredLines[log.id] || [])}
+                                            </div>
+                                        ))}
+                                    </>
+                                )
+                            })()}
                         </div>
                     </TabsContent>
                 ))}

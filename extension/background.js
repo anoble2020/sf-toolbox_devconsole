@@ -1,4 +1,4 @@
-const SF_TOOLBOX_URL = 'http://localhost:3000';
+const SF_TOOLBOX_URL = 'http://sf-toolbox.com/devconsole';
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'openToolbox') {
